@@ -14,14 +14,14 @@
   <name>Neodatis Metaproject</name>
 
   <properties>
-    <neodatis.version>2.2b-SNAPSHOT</playn.version>
+    <neodatis.version>2.2b-SNAPSHOT</neodatis.version>
   </properties>
 
   <profiles>
     <profile>
-      <id>java</id>
+      <id>core</id>
       <activation><activeByDefault>true</activeByDefault></activation>
-      <modules><module>java</module></modules>
+      <modules><module>core</module></modules>
     </profile>
   </profiles>
   <modules>

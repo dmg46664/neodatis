@@ -12,11 +12,16 @@
   <description>The Neodatis core api</description>
 
   <dependencies>
+      <dependency>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+          <version>4.9</version>
+      </dependency>
   </dependencies>
 
   <build>
     <sourceDirectory>src</sourceDirectory>
-    <testSourceDirectory>tests</testSourceDirectory>
+    <testSourceDirectory>test</testSourceDirectory>
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
@@ -35,7 +40,7 @@
 
     <testResources>
       <testResource>
-        <directory>${basedir}/tests</directory>
+        <directory>${basedir}/test</directory>
       </testResource>
     </testResources>
   </build>

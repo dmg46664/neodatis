@@ -9,6 +9,8 @@ import org.neodatis.odb.core.layers.layer3.BytesFactory;
 import org.neodatis.odb.plugin.idf.DataFile;
 
 public class TestDataFile extends TestCase{
+
+	boolean debug = false;
 	
 	public void test1(){
 		String name = "name";
@@ -16,14 +18,14 @@ public class TestDataFile extends TestCase{
 		new File(fileName).delete();
 		int nbBuffers = 4;
 		int bufferSize = 4*1024;
-		DataFile df = new DataFile(name, fileName, nbBuffers, bufferSize);
+		DataFile df = new DataFile(name, fileName, nbBuffers, bufferSize, debug);
 		Bytes bb = BytesFactory.getBytes();
 		bb.set(0, (byte) 'a');
 		df.write(0, bb);
 		assertEquals(1, df.length());
 		df.close();
 		
-		df = new DataFile(name, fileName, nbBuffers, bufferSize);
+		df = new DataFile(name, fileName, nbBuffers, bufferSize, debug);
 		assertEquals(1,df.length());
 		df.close();
 		
@@ -37,7 +39,7 @@ public class TestDataFile extends TestCase{
 		new File(fileName).delete();
 		int nbBuffers = 4;
 		int bufferSize = 4*1024;
-		DataFile df = new DataFile(name, fileName, nbBuffers, bufferSize);
+		DataFile df = new DataFile(name, fileName, nbBuffers, bufferSize, debug);
 		long size = 1024*100;
 		long max = Long.MAX_VALUE;
 		long start = System.currentTimeMillis();
@@ -66,7 +68,7 @@ public class TestDataFile extends TestCase{
 		}
 		df.close();
 		
-		df = new DataFile(name, fileName, nbBuffers, bufferSize);
+		df = new DataFile(name, fileName, nbBuffers, bufferSize, debug);
 		assertEquals(size*8*1024,df.length());
 		df.close();
 		
@@ -93,7 +95,7 @@ public class TestDataFile extends TestCase{
 		int nbBuffers = 4;
 		int bufferSize = 4*1024;
 		long t0 = System.currentTimeMillis();
-		DataFile df = new DataFile(name, fileName, nbBuffers, bufferSize);
+		DataFile df = new DataFile(name, fileName, nbBuffers, bufferSize, debug);
 		Bytes b = df.read(99*8*1024, 8*1024);
 		long t1 = System.currentTimeMillis();
 		df.close();
