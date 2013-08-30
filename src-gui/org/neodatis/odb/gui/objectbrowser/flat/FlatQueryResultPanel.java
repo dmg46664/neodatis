@@ -30,10 +30,10 @@ import javax.swing.JTable;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.TableColumn;
 
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.session.SessionEngine;
 
 public class FlatQueryResultPanel extends JPanel {
-	public FlatQueryResultPanel(IStorageEngine engine, String fullClassName, Collection objectInfoValues) {
+	public FlatQueryResultPanel(SessionEngine engine, String fullClassName, Collection objectInfoValues) {
 		super();
 		init(engine, fullClassName, objectInfoValues);
 	}
@@ -45,7 +45,7 @@ public class FlatQueryResultPanel extends JPanel {
 	 * @param objectInfoValues
 	 *            A list AbstractObjectInfos
 	 */
-	private void init(IStorageEngine engine, String fullClassName, Collection objectInfoValues) {
+	private void init(SessionEngine engine, String fullClassName, Collection objectInfoValues) {
 		setBorder(new EmptyBorder(4, 4, 4, 4));
 		setLayout(new BorderLayout(4, 4));
 		FlatQueryTableModel model = new FlatQueryTableModel(engine, fullClassName, objectInfoValues);

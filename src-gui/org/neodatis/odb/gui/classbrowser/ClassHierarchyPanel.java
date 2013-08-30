@@ -41,14 +41,14 @@ import org.neodatis.odb.Objects;
 import org.neodatis.odb.core.layers.layer2.meta.AbstractObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassAttributeInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
-import org.neodatis.odb.core.layers.layer3.IBaseIdentification;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.layers.layer4.BaseIdentification;
+import org.neodatis.odb.core.query.criteria.CriteriaQuery;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.IBrowserContainer;
 import org.neodatis.odb.gui.objectbrowser.flat.FlatQueryResultPanel;
 import org.neodatis.odb.gui.objectbrowser.hierarchy.HierarchicObjectBrowserPanel;
 import org.neodatis.odb.gui.objectbrowser.update.NewObjectPanel;
 import org.neodatis.odb.gui.query.CriteriaQueryPanel;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
 import org.neodatis.tool.ILogger;
 import org.neodatis.tool.wrappers.OdbString;
 
@@ -69,7 +69,7 @@ public class ClassHierarchyPanel extends JPanel {
 	
 	private static final int MAX_OBJECTS = 300;
 	
-	private IStorageEngine engine;
+	private SessionEngine engine;
 	private ClassHierarchyModel model;
 
 	private JTree tree;
@@ -87,7 +87,7 @@ public class ClassHierarchyPanel extends JPanel {
 	/** to display errors */
 	private ILogger logger;
 
-	public ClassHierarchyPanel(IStorageEngine theEngine, IBrowserContainer browser, String title, ILogger logger) {
+	public ClassHierarchyPanel(SessionEngine theEngine, IBrowserContainer browser, String title, ILogger logger) {
 		super();
 		this.engine = theEngine;
 		this.browser = browser;
@@ -125,7 +125,7 @@ public class ClassHierarchyPanel extends JPanel {
 
 	}
 
-	public void updateEngine(IStorageEngine engine) {
+	public void updateEngine(SessionEngine engine) {
 		this.engine = engine;
 		this.model.updateEngine(engine);
 		tree.invalidate();
@@ -145,7 +145,7 @@ public class ClassHierarchyPanel extends JPanel {
 		if (engine == null) {
 			System.out.println("Engine is null!");
 		}
-		IBaseIdentification p = engine.getBaseIdentification();
+		BaseIdentification p = engine.getSession().getBaseIdentification();
 		return p.toString();
 		/*
 		 * if(p instanceof IOFileParameter){ IOFileParameter fp =
@@ -309,22 +309,13 @@ public class ClassHierarchyPanel extends JPanel {
 			JOptionPane.showMessageDialog(this, "Select a class to browse");
 			return;
 		}
-		if (classInfoToBrowse.hasCyclicReference()) {
+		if (engine.getSession().getMetaModel().hasCyclicReference(classInfoToBrowse)) {
 			JOptionPane.showMessageDialog(this, "<html>Class <b>" + classInfoToBrowse.getFullClassName()
 					+ "</b> has cyclic references : it can not be displayed in table view. <br>Please use the Object View</html>");
 			return;
 		}
 		String title = classInfoToBrowse.getFullClassName();
-		long nbObjects = engine.getSession(true).getMetaModel().getClassInfo(classInfoToBrowse.getFullClassName(), true)
-				.getNumberOfObjects();
-		if (nbObjects > MAX_OBJECTS) {
-			int userOption = JOptionPane.showConfirmDialog(this, "Class " + classInfoToBrowse.getFullClassName() + "\n has " + nbObjects
-					+ " objects. Do you really want to display all ?", "Warning", JOptionPane.OK_CANCEL_OPTION);
-			if (userOption == JOptionPane.CANCEL_OPTION) {
-				return;
-			}
-		}
-		Objects l = engine.getObjectInfos(new CriteriaQuery(classInfoToBrowse.getFullClassName()), true, -1, -1, false);
+		Objects l = engine.getMetaObjects(engine.criteriaQuery(classInfoToBrowse.getFullClassName()));
 		FlatQueryResultPanel panel = new FlatQueryResultPanel(engine, classInfoToBrowse.getFullClassName(), l);
 		browser.browse(title, panel, l.size());
 	}
@@ -348,18 +339,8 @@ public class ClassHierarchyPanel extends JPanel {
 			return;
 		}
 
-		long nbObjects = engine.getSession(true).getMetaModel().getClassInfo(classInfoToBrowse.getFullClassName(), true)
-				.getNumberOfObjects();
-		if (nbObjects > MAX_OBJECTS) {
-			int userOption = JOptionPane.showConfirmDialog(this, "Class " + classInfoToBrowse.getFullClassName() + "\n has " + nbObjects
-					+ " objects. Do you really want to display all ?", "Warning", JOptionPane.OK_CANCEL_OPTION);
-			if (userOption == JOptionPane.CANCEL_OPTION) {
-				return;
-			}
-		}
-
 		String title = classInfoToBrowse.getFullClassName();
-		Objects<AbstractObjectInfo> l = engine.getObjectInfos(new CriteriaQuery(classInfoToBrowse.getFullClassName()), true, -1, -1, false);
+		Objects<AbstractObjectInfo> l = engine.getMetaObjects(engine.criteriaQuery(classInfoToBrowse.getFullClassName()));
 		// TODO: Tru to avoid copying the list here. TreeModel needs a list
 		// because it uses get(index) and indexOf(Object)
 		List list = new ArrayList<Objects<AbstractObjectInfo>>(l.size());

@@ -25,11 +25,11 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Map;
 
-import org.neodatis.odb.ODBRuntimeException;
-import org.neodatis.odb.OID;
-import org.neodatis.odb.OdbConfiguration;
+import org.neodatis.odb.ClassOid;
+import org.neodatis.odb.NeoDatisConfig;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.core.NeoDatisError;
-import org.neodatis.odb.core.layers.layer2.instance.IClassPool;
+import org.neodatis.odb.core.layers.layer2.instance.ClassPool;
 import org.neodatis.tool.wrappers.list.IOdbList;
 import org.neodatis.tool.wrappers.list.OdbArrayList;
 import org.neodatis.tool.wrappers.map.OdbHashMap;
@@ -47,7 +47,7 @@ public abstract class MetaModel implements Serializable {
 
 	private Map <String,ClassInfo>rapidAccessForSystemClassesByName;
 	
-	private Map <OID,ClassInfo>rapidAccessForClassesByOid;
+	private Map <ClassOid,ClassInfo>rapidAccessForClassesByOid;
 
 	/** A simple list to hold all class infos. It is redundant with the maps, but in some cases, we need sequential access to classes :-(*/
 	private IOdbList<ClassInfo> allClassInfos;
@@ -55,23 +55,34 @@ public abstract class MetaModel implements Serializable {
 	/** to identify if meta model has changed */
 	private boolean hasChanged;
 	
-	protected transient IClassPool classPool;
+	protected transient ClassPool classPool;
+	protected NeoDatisConfig neoDatisConfig;
 
-	public MetaModel() {
-		this.classPool = OdbConfiguration.getCoreProvider().getClassPool();
+	public MetaModel(NeoDatisConfig config) {
+		this.neoDatisConfig = config;
+		this.classPool = neoDatisConfig.getCoreProvider().getClassPool();
 		rapidAccessForUserClassesByName = new OdbHashMap<String, ClassInfo>(10);
 		rapidAccessForSystemClassesByName = new OdbHashMap<String, ClassInfo>(10);
-		rapidAccessForClassesByOid = new OdbHashMap<OID, ClassInfo>(10);
+		rapidAccessForClassesByOid = new OdbHashMap<ClassOid, ClassInfo>(10);
 		allClassInfos = new OdbArrayList<ClassInfo>();
 	}
 
-	public void addClass(ClassInfo classInfo) {
+	public void addClass(ClassInfo classInfo, boolean forceAdd) {
+		boolean existClass = existClass(classInfo.getFullClassName());
+		if(!forceAdd && existClass){
+			return;
+		}
+		
+		
+		if(existClass){
+			allClassInfos.remove(classInfo);
+		}
 		if (classInfo.isSystemClass()) {
 			rapidAccessForSystemClassesByName.put(classInfo.getFullClassName(), classInfo);
 		} else {
 			rapidAccessForUserClassesByName.put(classInfo.getFullClassName(), classInfo);
 		}
-		rapidAccessForClassesByOid.put(classInfo.getId(), classInfo);
+		rapidAccessForClassesByOid.put(classInfo.getOid(), classInfo);
 		allClassInfos.add(classInfo);
 	}
 
@@ -79,7 +90,7 @@ public abstract class MetaModel implements Serializable {
 		Iterator iterator = ciList.getClassInfos().iterator();
 
 		while (iterator.hasNext()) {
-			addClass((ClassInfo) iterator.next());
+			addClass((ClassInfo) iterator.next(), false);
 		}
 	}
 	
@@ -129,8 +140,8 @@ public abstract class MetaModel implements Serializable {
 	 * @param id
 	 * @return the class info with the OID
 	 */
-	public ClassInfo getClassInfoFromId(OID id) {
-		return rapidAccessForClassesByOid.get(id);
+	public ClassInfo getClassInfoFromId(ClassOid coid) {
+		return rapidAccessForClassesByOid.get(coid);
 	}
 
 	public ClassInfo getClassInfo(String fullClassName, boolean throwExceptionIfDoesNotExist) {
@@ -145,7 +156,7 @@ public abstract class MetaModel implements Serializable {
 			return ci;
 		}
 		if (throwExceptionIfDoesNotExist) {
-			throw new ODBRuntimeException(NeoDatisError.META_MODEL_CLASS_NAME_DOES_NOT_EXIST.addParameter(fullClassName));
+			throw new NeoDatisRuntimeException(NeoDatisError.META_MODEL_CLASS_NAME_DOES_NOT_EXIST.addParameter(fullClassName));
 		}
 		return null;
 	}
@@ -172,12 +183,12 @@ public abstract class MetaModel implements Serializable {
 		ClassInfo ci2 = null;
 		while(iterator.hasNext()){
 			ci2 = (ClassInfo) iterator.next();
-			if(ci2.getId()==ci.getId()){
+			if(ci2.getOid()==ci.getOid()){
 				return i;
 			}
 			i++;
 		}
-		throw new ODBRuntimeException(NeoDatisError.CLASS_INFO_DOES_NOT_EXIST_IN_META_MODEL.addParameter(ci.getFullClassName()));
+		throw new NeoDatisRuntimeException(NeoDatisError.CLASS_INFO_DOES_NOT_EXIST_IN_META_MODEL.addParameter(ci.getFullClassName()));
 	}
 
 	/**
@@ -204,7 +215,7 @@ public abstract class MetaModel implements Serializable {
 			}
 			i++;
 		}
-		throw new ODBRuntimeException(NeoDatisError.CLASS_INFO_DOES_NOT_EXIST_IN_META_MODEL.addParameter(" with index "+index));
+		throw new NeoDatisRuntimeException(NeoDatisError.CLASS_INFO_DOES_NOT_EXIST_IN_META_MODEL.addParameter(" with index "+index));
 	}
 
 	public void clear() {
@@ -235,34 +246,23 @@ public abstract class MetaModel implements Serializable {
 	public abstract void addChangedClass(ClassInfo ci);
 	
 
-	public Map<String,Object> getHistory() {
-		Map<String,Object> map = new OdbHashMap<String, Object>();
-		ClassInfo ci = null;
-		Iterator<ClassInfo> iterator = allClassInfos.iterator();
-		while (iterator.hasNext()) {
-			ci = iterator.next();
-			map.put(ci.getFullClassName(), ci.getHistory());
-		}
-		return map;
-	}
-	
 	/** Builds a meta model from a list of class infos
 	 * 
 	 * @param classInfos
 	 * @return The new Metamodel
 	 */
-	public static MetaModel fromClassInfos(IOdbList<ClassInfo> classInfos){
-		MetaModel metaModel = new SessionMetaModel();
+	public static MetaModel fromClassInfos(IOdbList<ClassInfo> classInfos, NeoDatisConfig neoDatisConfig){
+		MetaModel metaModel = new MetaModelImpl(neoDatisConfig);
 		int nbClasses = classInfos.size();
 		
 		for(int i=0;i<nbClasses;i++){
-			metaModel.addClass(classInfos.get(i));
+			metaModel.addClass(classInfos.get(i), false);
 		}
 		return metaModel;
 	}
 	
 	/**
-	 * Gets all the persistent classes that are subclasses or equal to the parameter class
+	 * Gets all the persistent classes that are subclasses or equal to the identification class
 	 * @param fullClassName
 	 * @return The list of class info of persistent classes that are subclasses or equal to the class
 	 */
@@ -292,4 +292,42 @@ public abstract class MetaModel implements Serializable {
 	 * @return
 	 */
 	public abstract MetaModel duplicate();
+	
+	/**
+	 * To detect if a class has cyclic reference
+	 * 
+	 * @return true if this class info has cyclic references
+	 */
+	public boolean hasCyclicReference(ClassInfo ci) {
+		return hasCyclicReference(ci, new OdbHashMap<String, ClassInfo>());
+	}
+
+	/**
+	 * To detect if a class has cyclic reference
+	 * 
+	 * @param alreadyVisitedClasses
+	 *            A hashmap containing all the already visited classes
+	 * @return true if this class info has cyclic references
+	 */
+	private boolean hasCyclicReference(ClassInfo ci, Map<String, ClassInfo> alreadyVisitedClasses) {
+		ClassAttributeInfo cai = null;
+		boolean hasCyclicRef = false;
+		String fullClassName = ci.getFullClassName();
+		if (alreadyVisitedClasses.get(fullClassName) != null) {
+			return true;
+		}
+		Map<String, ClassInfo> localMap = new OdbHashMap<String, ClassInfo>();
+		alreadyVisitedClasses.put(fullClassName, ci);
+		for (int i = 0; i < ci.getAttributes().size(); i++) {
+			cai = ci.getAttributeInfo(i);
+			if (!cai.isNative()) {
+				localMap = new OdbHashMap<String, ClassInfo>(alreadyVisitedClasses);
+				hasCyclicRef = hasCyclicReference(this.getClassInfoFromId(cai.getAttributeClassOid()),localMap);
+				if (hasCyclicRef) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
 }

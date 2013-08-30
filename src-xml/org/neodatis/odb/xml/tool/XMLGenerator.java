@@ -27,43 +27,48 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.neodatis.odb.ODBRuntimeException;
-import org.neodatis.odb.OdbConfiguration;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.core.NeoDatisError;
 import org.neodatis.tool.wrappers.io.OdbFile;
 
 public class XMLGenerator {
-	private static List<NodeEventListener> listeners = new ArrayList<NodeEventListener>();
-	private static String incrementalFileName;
-	private static boolean writeIncremental;
-	private static Writer incrementalWriter;
-	private static boolean firstNode = true;
+	private  List<NodeEventListener> listeners = new ArrayList<NodeEventListener>();
+	private  String incrementalFileName;
+	private  boolean writeIncremental;
+	private  Writer incrementalWriter;
+	private  boolean firstNode = true;
 
-	public static void addListener(NodeEventListener listener) {
+	private String encoding;
+	
+	public XMLGenerator(String encoding){
+		this.encoding = encoding;
+	}
+	
+	public  void addListener(NodeEventListener listener) {
 		listeners.add(listener);
 	}
 
-	public static void setIncrementalWriteOn(String fileName) throws IOException {
+	public  void setIncrementalWriteOn(String fileName) throws IOException {
 		incrementalFileName = fileName;
 		writeIncremental = true;
 		incrementalWriter = getWriter(fileName);
 	}
 
-	public static void end() throws IOException {
+	public  void end() throws IOException {
 		if (writeIncremental && incrementalWriter != null) {
 			incrementalWriter.close();
 		}
 	}
 
-	public static XMLNode createRoot(String name) {
+	public  XMLNode createRoot(String name) {
 
-		XMLNode node = new XMLNode(name, true);
+		XMLNode node = new XMLNode(this,name, true);
 		startOfDocument(name);
 
 		return node;
 	}
 
-	public static void startOfDocument(String name) {
+	public  void startOfDocument(String name) {
 		NodeEventListener listener = null;
 		if (writeIncremental) {
 			try {
@@ -72,7 +77,7 @@ public class XMLGenerator {
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
-				throw new ODBRuntimeException(NeoDatisError.XML_HEADER, e);
+				throw new NeoDatisRuntimeException(NeoDatisError.XML_HEADER, e);
 			}
 
 		}
@@ -82,7 +87,7 @@ public class XMLGenerator {
 		}
 	}
 
-	public static void endOfDocument(String name) {
+	public  void endOfDocument(String name) {
 		NodeEventListener listener = null;
 		for (int i = 0; i < listeners.size(); i++) {
 			listener = (NodeEventListener) listeners.get(i);
@@ -90,7 +95,7 @@ public class XMLGenerator {
 		}
 	}
 
-	public static void startOfNode(String name, XMLNode node) {
+	public  void startOfNode(String name, XMLNode node) {
 		NodeEventListener listener = null;
 		for (int i = 0; i < listeners.size(); i++) {
 			listener = (NodeEventListener) listeners.get(i);
@@ -106,7 +111,7 @@ public class XMLGenerator {
 		}
 	}
 
-	public static boolean endOfNode(String name, XMLNode node) {
+	public  boolean endOfNode(String name, XMLNode node) {
 		NodeEventListener listener = null;
 		for (int i = 0; i < listeners.size(); i++) {
 			listener = (NodeEventListener) listeners.get(i);
@@ -130,23 +135,23 @@ public class XMLGenerator {
 		return false;
 	}
 
-	private static void writeIncrementalNodeHeader(XMLNode node, boolean closeTag) throws IOException {
+	private  void writeIncrementalNodeHeader(XMLNode node, boolean closeTag) throws IOException {
 		incrementalWriter.write(node.headerToString(closeTag));
 		incrementalWriter.flush();
 	}
 
-	private static void writeIncrementalNodeFooter(XMLNode node) throws IOException {
+	private  void writeIncrementalNodeFooter(XMLNode node) throws IOException {
 		incrementalWriter.write(node.footerToString());
 		incrementalWriter.flush();
 	}
 
-	public static void writeNodeToFile(XMLNode node, String fileName) throws IOException {
+	public  void writeNodeToFile(XMLNode node, String fileName) throws IOException {
 		Writer writer = getWriter(fileName);
 		writer.write(node.toString());
 		writer.close();
 	}
 
-	private static Writer getWriter(String fileName) throws IOException {
+	private  Writer getWriter(String fileName) throws IOException {
 		OdbFile f = new OdbFile(fileName);
 		if (!f.exists()) {
 			if (f.getParentFile() != null) {
@@ -156,15 +161,15 @@ public class XMLGenerator {
 		FileOutputStream out = new FileOutputStream(fileName);
 		OutputStreamWriter writer = null;
 
-		if (OdbConfiguration.hasEncoding()) {
-			writer = new OutputStreamWriter(out, OdbConfiguration.getDatabaseCharacterEncoding());
+		if (encoding!=null) {
+			writer = new OutputStreamWriter(out, encoding);
 		} else {
 			writer = new OutputStreamWriter(out);
 		}
 		return writer;
 	}
 
-	public static void close() throws IOException {
+	public  void close() throws IOException {
 		if (incrementalWriter != null) {
 			incrementalWriter.close();
 		}

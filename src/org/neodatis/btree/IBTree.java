@@ -3,7 +3,7 @@ package org.neodatis.btree;
 import java.io.Serializable;
 import java.util.Iterator;
 
-import org.neodatis.odb.core.OrderByConstants;
+import org.neodatis.OrderByConstants;
 
 public interface IBTree extends Serializable {
 	void insert(Comparable key, Object value);

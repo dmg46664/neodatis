@@ -23,6 +23,7 @@ package org.neodatis.btree.impl.multiplevalue;
 import java.util.Iterator;
 import java.util.List;
 
+import org.neodatis.OrderByConstants;
 import org.neodatis.btree.BTreeIteratorMultipleValuesPerKey;
 import org.neodatis.btree.IBTreeMultipleValuesPerKey;
 import org.neodatis.btree.IBTreeNode;
@@ -30,7 +31,6 @@ import org.neodatis.btree.IBTreeNodeMultipleValuesPerKey;
 import org.neodatis.btree.IBTreePersister;
 import org.neodatis.btree.impl.AbstractBTree;
 import org.neodatis.btree.impl.InMemoryPersister;
-import org.neodatis.odb.core.OrderByConstants;
 
 public class InMemoryBTreeMultipleValuesPerKey extends AbstractBTree implements IBTreeMultipleValuesPerKey{
 

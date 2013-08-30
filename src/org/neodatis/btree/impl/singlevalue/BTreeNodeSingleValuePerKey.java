@@ -27,7 +27,7 @@ import org.neodatis.btree.impl.AbstractBTreeNode;
 
 public abstract class BTreeNodeSingleValuePerKey extends AbstractBTreeNode implements IBTreeNodeOneValuePerKey{
 	
-	
+	protected boolean replaceOnDuplicate;
 
 	public BTreeNodeSingleValuePerKey() {
 		super();
@@ -41,13 +41,18 @@ public abstract class BTreeNodeSingleValuePerKey extends AbstractBTreeNode imple
 		return values[index];
 	}
 
-	public void insertKeyAndValue(Comparable key, Object value) {
+	public boolean insertKeyAndValue(Comparable key, Object value) {
 
 		int position = getPositionOfKey(key);
 
 		int realPosition = 0;
 		if (position >= 0) {
-			throw new DuplicatedKeyException(String.valueOf(key));
+			if(!replaceOnDuplicate){
+				throw new DuplicatedKeyException(String.valueOf(key));
+			}
+			// just replace the value
+			values[position-1] = value;
+			return false;
 		}
 		realPosition = -position - 1;
 		// If there is an element at this position, then right shift, size
@@ -58,6 +63,7 @@ public abstract class BTreeNodeSingleValuePerKey extends AbstractBTreeNode imple
 		keys[realPosition] = key;
 		values[realPosition] = value;
 		nbKeys++;
+		return true;
 	}
 
 	public Object search(Comparable key) {
@@ -76,5 +82,8 @@ public abstract class BTreeNodeSingleValuePerKey extends AbstractBTreeNode imple
 		realPosition = -position - 1;
 		IBTreeNodeOneValuePerKey node = (IBTreeNodeOneValuePerKey) getChildAt(realPosition, true);
 		return node.search(key);
+	}
+	public void setReplaceOnDuplicate(boolean yesNo){
+		this.replaceOnDuplicate = yesNo;		
 	}
 }

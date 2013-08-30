@@ -33,10 +33,6 @@ public class NonNativeNullObjectInfo  extends NonNativeObjectInfo{
         super(null);
     }
 
-    public NonNativeNullObjectInfo(ClassInfo classInfo) {
-		super(classInfo);
-	}
-	
 	public String toString() {
 		return "null non native object ";
 	}

@@ -20,17 +20,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class CloseMessageResponse extends Message {
-	
-	public CloseMessageResponse(String baseId, String connectionId, String error){
-		super(Command.CLOSE, baseId,connectionId);
+	public CloseMessageResponse(){
+		super();
+	}
+	public CloseMessageResponse(String baseId, String sessionId, String error){
+		super(MessageType.CLOSE_RESPONSE, baseId,sessionId);
 		setError(error);
 	}
-	public CloseMessageResponse(String baseId, String connectionId){
-		super(Command.CLOSE, baseId,connectionId);
+	public CloseMessageResponse(String baseId, String sessionId){
+		super(MessageType.CLOSE_RESPONSE, baseId,sessionId);
 	}
 }

@@ -24,8 +24,18 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+import org.neodatis.odb.core.layers.layer2.meta.AttributeIdentification;
+
 public class DisplayUtility {
 	public static String byteArrayToString(byte[] bytes) {
+		StringBuffer buffer = new StringBuffer();
+		for (int i = 0; i < bytes.length; i++) {
+			buffer.append((int) bytes[i]).append(" ");
+		}
+		return buffer.toString();
+	}
+
+	public static String intArrayToString(int[] bytes) {
 		StringBuffer buffer = new StringBuffer();
 		for (int i = 0; i < bytes.length; i++) {
 			buffer.append((int) bytes[i]).append(" ");
@@ -66,4 +76,13 @@ public class DisplayUtility {
 		}
 		return buffer.toString();
 	}
+	
+	public static String toString(AttributeIdentification[] attributeIdentifications) {
+		StringBuilder b = new StringBuilder();
+		for(AttributeIdentification ai:attributeIdentifications){
+			b.append("\n\t").append(ai.toString());
+		}
+		return b.toString();
+	}
+
 }

@@ -21,8 +21,6 @@
 package org.neodatis.odb.core.server.message;
 
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 import org.neodatis.tool.wrappers.list.IOdbList;
 
 
@@ -37,11 +35,11 @@ public class NewClassInfoListMessageResponse extends Message {
 	private IOdbList<ClassInfo> classInfos;
 
 	public NewClassInfoListMessageResponse(String baseId, String connectionId, String error) {
-		super(Command.ADD_CLASS_INFO_LIST, baseId,connectionId);
+		super(MessageType.ADD_CLASS_INFO_LIST, baseId,connectionId);
 		setError(error);
 	}
 	public NewClassInfoListMessageResponse(String baseId, String connectionId, IOdbList<ClassInfo> classInfos) {
-		super(Command.ADD_CLASS_INFO_LIST, baseId,connectionId);
+		super(MessageType.ADD_CLASS_INFO_LIST, baseId,connectionId);
 		this.classInfos = classInfos;
 	}
 	public IOdbList<ClassInfo> getClassInfos() {

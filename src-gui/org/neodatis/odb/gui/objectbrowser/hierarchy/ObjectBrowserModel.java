@@ -20,6 +20,7 @@
  */
 package org.neodatis.odb.gui.objectbrowser.hierarchy;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.List;
 
@@ -40,17 +41,19 @@ import org.neodatis.odb.core.layers.layer2.meta.NonNativeNullObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NullNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ODBType;
+import org.neodatis.odb.core.session.Session;
 
 public class ObjectBrowserModel extends DefaultTreeModel {
 
 	private ClassInfo ci;
 
 	private List objectValues;
-
-	public ObjectBrowserModel(ClassInfo ci, List objectValues, TreeNode node) {
+	private Session session;
+	public ObjectBrowserModel(ClassInfo ci, List objectValues, TreeNode node, Session session) {
 		super(node);
 		this.ci = ci;
 		this.objectValues = objectValues;
+		this.session = session;
 	}
 
 	/*
@@ -93,8 +96,8 @@ public class ObjectBrowserModel extends DefaultTreeModel {
 				if (cai.getAttributeType().isArray() && !noi.isNull()) {
 					return new ArrayWrapper(nnoi, attributeName, (ArrayObjectInfo) value);
 				}
-				return new NativeAttributeValueWrapper(nnoi, attributeName, value, (long) nnaiw.getNnoi().getHeader()
-						.getAttributeIdentificationFromId(index + 1));
+				return new NativeAttributeValueWrapper(nnoi, attributeName, value, nnaiw.getNnoi().getHeader()
+						.getAttributeIdentificationFromId(index + 1),session);
 			}
 
 			if (value instanceof NonNativeObjectInfo) {
@@ -115,16 +118,10 @@ public class ObjectBrowserModel extends DefaultTreeModel {
 		if (parent instanceof ArrayWrapper) {
 			ArrayWrapper aw = (ArrayWrapper) parent;
 			Object element = null;
-			try{
-				//element = Array.get(aw.getArray(), index);
-				Object[] a = (Object[]) aw.getArray();
-				element = a[index];
-				System.out.println("Getting array element for index " + index);
-				Object o = manageRepresentation(element);
-				return o;
-			}catch (Exception e) {
-				return new StringWrapper("Null");
-			}
+			element = Array.get(aw.getArray(), index);
+
+			Object o = manageRepresentation(element);
+			return o;
 		}
 		if (parent instanceof MapWrapper) {
 			MapWrapper mw = (MapWrapper) parent;
@@ -184,8 +181,7 @@ public class ObjectBrowserModel extends DefaultTreeModel {
 		}
 		if (parent instanceof ArrayWrapper) {
 			ArrayWrapper aw = (ArrayWrapper) parent;
-			int size = aw.getArraySize();
-			return size;
+			return aw.getArraySize();
 		}
 		if (parent instanceof MapElementWrapper) {
 			return 2;
@@ -233,15 +229,9 @@ public class ObjectBrowserModel extends DefaultTreeModel {
 		}
 		if (object instanceof NativeObjectInfo) {
 			NativeObjectInfo noi = (NativeObjectInfo) object;
-			Object o = noi.getObject();
-			String s = "object is null";
-			if(o!=null){
-				s = new String(o.toString() + " (type="+o.getClass().getName()+")");	
-			}
-			System.out.println("manageRepresentation returning string " + s);
-			return new StringWrapper(s);
+			return new StringWrapper(noi.getObject().toString());
 		}
-		System.out.println("manageRepresentation returning object " + object);
+
 		return object;
 
 	}

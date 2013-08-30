@@ -20,13 +20,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class ErrorMessage extends Message {
 	public ErrorMessage(String baseId, String connectionId,String error){
-		super(Command.CLOSE, baseId,connectionId);
+		super(MessageType.CLOSE, baseId,connectionId);
 		setError(error);
 	}
 	public String toString() {

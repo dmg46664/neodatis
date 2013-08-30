@@ -22,35 +22,24 @@ package org.neodatis.odb.core.layers.layer2.meta;
 
 import java.util.Map;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.core.NeoDatisError;
-import org.neodatis.odb.impl.core.layers.layer3.engine.StorageEngineConstant;
 import org.neodatis.tool.wrappers.OdbClassUtil;
 import org.neodatis.tool.wrappers.OdbString;
 import org.neodatis.tool.wrappers.list.IOdbList;
 import org.neodatis.tool.wrappers.list.OdbArrayList;
 
 /**
- * To keep info about a non native object. The NonNativeObjectInfo is the meta representation and is a class of the Layer in NeoDatis architecture (http://wiki.neodatis.org/odb-layers).
- * 
- * The NonNativeObjectInfo (nnoi) contains all the data of the attributes of an objects. 
+ * To keep info about a non native object
  * 
  * <pre>
  * 
- *      * The object
- * The type of the object (org.neodatis.odb.core.meta.ODBType)
- * The ClassInfo of the object
- * The list of attributes (list of AbstractObjectInfo)
- * The ObjectInfoHeader that holds :
- *           o The object position (in the ODB file)
- *           o The Object OID
- *           o The previous Object OID
- *           o The next object OID
- *           o The ClassInfo OID
- *           o The ids (local id, to idenitfy the attribute) of the attributes
- *           o The OID or position of the attributes
- * 
+ *  - Keeps its class info : a meta information to describe its type
+ *  - All its attributes values
+ *  - Its Pointers : its position, the previous object OID, the next object OID
+ *  - The Object being represented by The meta information
  * </pre>
  * 
  * @author olivier s
@@ -59,16 +48,28 @@ import org.neodatis.tool.wrappers.list.OdbArrayList;
 public class NonNativeObjectInfo extends AbstractObjectInfo {
 	/** The object being represented */
 	protected transient Object object;
+	/** The class info is the class meta information */
 	private ClassInfo classInfo;
-	// private List attributeValues;
+	/** The header of the meta representation */
 	private ObjectInfoHeader objectHeader;
+	/** All the attributes */
 	private AbstractObjectInfo[] attributeValues;
-	/** To keep track of all non native objects , not used for instance */
-	private IOdbList<NonNativeObjectInfo> allNonNativeObjects;
+	/**
+	 * To keep track of all non native objects , It will be used in layer 3 to
+	 * optimize the conversion of NonNativeObjectInfo to bytes
+	 */
+	private IOdbList<NonNativeObjectInfo> directNonNativeAttributes;
+	/**
+	 * To keep track of all non native objects contained in the hierarchy of the
+	 * objects but not as direct attributes, objects contained in lists, arrays,
+	 * and non native attributes
+	 */
+	private IOdbList<NonNativeObjectInfo> nonDirectNonNativeObjects;
 	private int maxNbattributes;
 
 	public NonNativeObjectInfo() {
 		super(null);
+		this.objectHeader = new ObjectInfoHeader();
 	}
 
 	public NonNativeObjectInfo(ObjectInfoHeader oip, ClassInfo classInfo) {
@@ -79,54 +80,44 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 			this.maxNbattributes = classInfo.getMaxAttributeId();
 			this.attributeValues = new AbstractObjectInfo[maxNbattributes];
 		}
-		this.allNonNativeObjects = null;// new
-										// OdbArrayList<NonNativeObjectInfo>();
+		this.directNonNativeAttributes = new OdbArrayList<NonNativeObjectInfo>();
+		this.nonDirectNonNativeObjects = new OdbArrayList<NonNativeObjectInfo>();
 	}
 
 	public NonNativeObjectInfo(ClassInfo classInfo) {
 		super(null);
 		this.classInfo = classInfo;
-		this.objectHeader = new ObjectInfoHeader(-1, null, null, (classInfo != null ? classInfo.getId() : null), null, null);
+		this.objectHeader = new ObjectInfoHeader((classInfo != null ? classInfo.getOid() : null), null);
 		if (classInfo != null) {
 			this.maxNbattributes = classInfo.getMaxAttributeId();
 			this.attributeValues = new AbstractObjectInfo[maxNbattributes];
 		}
-		this.allNonNativeObjects = null;// new
-										// OdbArrayList<NonNativeObjectInfo>();
+		this.directNonNativeAttributes = new OdbArrayList<NonNativeObjectInfo>();
+		this.nonDirectNonNativeObjects = new OdbArrayList<NonNativeObjectInfo>();
 	}
 
-	public NonNativeObjectInfo(Object object, ClassInfo info, AbstractObjectInfo[] values, long[] attributesIdentification,
-			int[] attributeIds) {
-		super(ODBType.getFromName(info.getFullClassName()));
+	public NonNativeObjectInfo(Object object, ClassInfo ci, AbstractObjectInfo[] values, AttributeIdentification[] attributesIdentification) {
+		super(ODBType.getFromName(ci.getFullClassName()));
 		this.object = object;
-		this.classInfo = info;
+		this.classInfo = ci;
 		this.attributeValues = values;
 		this.maxNbattributes = classInfo.getMaxAttributeId();
 		if (attributeValues == null) {
 			this.attributeValues = new AbstractObjectInfo[maxNbattributes];
 		}
-		this.objectHeader = new ObjectInfoHeader(-1, null, null, (classInfo != null ? classInfo.getId() : null), attributesIdentification,
-				attributeIds);
-		this.allNonNativeObjects = new OdbArrayList<NonNativeObjectInfo>();
+		this.objectHeader = new ObjectInfoHeader((classInfo != null ? classInfo.getOid() : null), attributesIdentification);
+		this.directNonNativeAttributes = new OdbArrayList<NonNativeObjectInfo>();
+		this.nonDirectNonNativeObjects = new OdbArrayList<NonNativeObjectInfo>();
 	}
 
 	public ObjectInfoHeader getHeader() {
 		return objectHeader;
 	}
 
-	/**
-	 * Return The meta representation of an attribute from its attribute id. Attribute ids are sequencial number(starting from 1) set by the classIntropector to identify attributes
-	 * @param attributeId
-	 * @return
-	 */
 	public AbstractObjectInfo getAttributeValueFromId(int attributeId) {
 		return attributeValues[attributeId - 1];
 	}
 
-	/**
-	 * Return the class info of the object. The Class Info is a meta representation of the java class
-	 * @return
-	 */
 	public ClassInfo getClassInfo() {
 		return classInfo;
 	}
@@ -134,7 +125,7 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 	public void setClassInfo(ClassInfo classInfo) {
 		if (classInfo != null) {
 			this.classInfo = classInfo;
-			this.objectHeader.setClassInfoId(classInfo.getId());
+			this.objectHeader.setClassInfoId(classInfo.getOid());
 		}
 	}
 
@@ -151,7 +142,12 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 				buffer.append(",");
 			}
 
-			String attributeName = (classInfo != null ? (classInfo.getAttributeInfo(i)).getName() : "?");
+			String attributeName = "?";
+			try {
+				attributeName = (classInfo != null ? (classInfo.getAttributeInfo(i)).getName() : "?");
+			} catch (Exception e) {
+				continue;
+			}
 			buffer.append(attributeName).append("=");
 			Object object = attributeValues[i];
 			if (object == null) {
@@ -180,65 +176,16 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 					buffer.append("@").append(nnoi.getClassInfo().getFullClassName()).append("(id=").append(nnoi.getOid()).append(")");
 					continue;
 				}
-
 				buffer.append("@").append(OdbClassUtil.getClassName(type.getName()));
 			}
 		}
 		return buffer.toString();
 	}
 
-	/** Returns the oid of the next object of the same type
-	 * 
-	 * @return
-	 */
-	public OID getNextObjectOID() {
-		return objectHeader.getNextObjectOID();
-	}
-
-	public void setNextObjectOID(OID nextObjectOID) {
-		this.objectHeader.setNextObjectOID(nextObjectOID);
-	}
-
-	/** Returns the oid of the previous object of the same type
-	 * 
-	 * @return
-	 */
-	public OID getPreviousObjectOID() {
-		return objectHeader.getPreviousObjectOID();
-	}
-
-	public void setPreviousInstanceOID(OID previousObjectOID) {
-		this.objectHeader.setPreviousObjectOID(previousObjectOID);
-	}
-
-	/** Gets the physical position of the object in the NeoDatis database file
-	 * 
-	 */
-	public long getPosition() {
-		return objectHeader.getPosition();
-	}
-
-	public void setPosition(long position) {
-		objectHeader.setPosition(position);
-	}
-
-	/** Gets the actual java object. May return null on client server mode as Client Server mode does work with java objects (layer1)
-	 * 
-	 */
 	public Object getObject() {
 		return object;
 	}
 
-	/**
-	 * Return the value of the attribute 'attribute name'
-	 * 
-	 * <pre>
-	 * For example, if  the class User has 2 attributes (name of type String, and profile of type Profile) calling getValueOf("name") on a nnoi (NonNativeObjectInfo) 
-	 * that represents an instance of User will return its name
-	 * </pre>
-	 * @param attributeName
-	 * @return
-	 */
 	public Object getValueOf(String attributeName) {
 		int attributeId = -1;
 		boolean isRelation = attributeName.indexOf(".") != -1;
@@ -254,38 +201,30 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 			NonNativeObjectInfo nnoi = (NonNativeObjectInfo) object;
 			return nnoi.getValueOf(OdbString.substring(attributeName, firstDotIndex + 1, attributeName.length()));
 		}
-		throw new ODBRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getClassInfo().getFullClassName())
-				.addParameter(attributeName));
+		throw new NeoDatisRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getClassInfo().getFullClassName()).addParameter(
+				attributeName));
 	}
 
-	/**
-	 * Return the value of the attribute 'attribute name'. Same as getValueOf, except that the object return is a meta representation of the real object : an AbstractObjectInfo (NonNative ObjectInfo, 
-	 * NativeObjectnfo,....)
-	 * 
-	 * 
-	 * <pre>
-	 * For example, if  the class User has 2 attributes (name of type String, and profile of type Profile) calling getValueOf("name") on a nnoi (NonNativeObjectInfo) 
-	 * that represents an instance of User will return its name
-	 * </pre>
-	 * @param attributeName
-	 * @return
-	 */
 	public AbstractObjectInfo getMetaValueOf(String attributeName) {
 		int attributeId = -1;
 		boolean isRelation = attributeName.indexOf(".") != -1;
 		if (!isRelation) {
 			attributeId = getClassInfo().getAttributeId(attributeName);
-			return getAttributeValueFromId(attributeId);
+			try{
+				return getAttributeValueFromId(attributeId);
+			}catch (ArrayIndexOutOfBoundsException e) {
+				throw new NeoDatisRuntimeException("Attribute " + attributeName+ " does not exist on object "+ this);
+			}
 		}
 		int firstDotIndex = attributeName.indexOf(".");
-		String firstAttributeName = OdbString.substring(attributeName, 0, firstDotIndex);
+		String firstAttributeName = OdbString.substring(attributeName,0, firstDotIndex);
 		attributeId = getClassInfo().getAttributeId(firstAttributeName);
 		Object object = attributeValues[attributeId];
 		if (object instanceof NonNativeObjectInfo) {
 			NonNativeObjectInfo nnoi = (NonNativeObjectInfo) object;
-			return nnoi.getMetaValueOf(OdbString.substring(attributeName, firstDotIndex + 1, attributeName.length()));
+			return nnoi.getMetaValueOf(OdbString.substring(attributeName,firstDotIndex + 1, attributeName.length()));
 		}
-		throw new ODBRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getClassInfo().getFullClassName())
+		throw new NeoDatisRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getClassInfo().getFullClassName())
 				.addParameter(attributeName));
 	}
 
@@ -311,33 +250,23 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 			NonNativeObjectInfo nnoi = (NonNativeObjectInfo) object;
 			nnoi.setValueOf(OdbString.substring(attributeName, firstDotIndex + 1, attributeName.length()), aoi);
 		}
-		throw new ODBRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getClassInfo().getFullClassName())
-				.addParameter(attributeName));
+		throw new NeoDatisRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getClassInfo().getFullClassName()).addParameter(
+				attributeName));
 	}
 
-	/**
-	 * Return the oid of the object 
-	 * @return The oid
-	 */
-	public OID getOid() {
+	public ObjectOid getOid() {
 		if (getHeader() == null) {
-			throw new ODBRuntimeException(NeoDatisError.UNEXPECTED_SITUATION.addParameter("Null Object Info Header"));
+			throw new NeoDatisRuntimeException(NeoDatisError.UNEXPECTED_SITUATION.addParameter("Null Object Info Header"));
 		}
 		return getHeader().getOid();
 	}
 
-	/**
-	 *  Sets the oid of the object
-	 * @param oid
-	 */
-	public void setOid(OID oid) {
+	public void setOid(ObjectOid oid) {
 		if (getHeader() != null) {
 			getHeader().setOid(oid);
 		}
 	}
-	/** To indicate that this is a non native object info
-	 * 
-	 */
+
 	public boolean isNonNativeObject() {
 		return true;
 	}
@@ -365,10 +294,9 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 
 		if (onlyData) {
 			ObjectInfoHeader oih = new ObjectInfoHeader();
-			nnoi = new NonNativeObjectInfo(object, classInfo, null, oih.getAttributesIdentification(), oih.getAttributeIds());
+			nnoi = new NonNativeObjectInfo(object, classInfo, null, oih.getAttributesIdentification());
 		} else {
-			nnoi = new NonNativeObjectInfo(object, classInfo, null, objectHeader.getAttributesIdentification(), objectHeader
-					.getAttributeIds());
+			nnoi = new NonNativeObjectInfo(object, classInfo, null, objectHeader.getAttributesIdentification());
 			nnoi.getHeader().setOid(getHeader().getOid());
 		}
 		AbstractObjectInfo[] newAttributeValues = new AbstractObjectInfo[attributeValues.length];
@@ -384,14 +312,14 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 	public void setAttributeValue(int attributeId, AbstractObjectInfo aoi) {
 		attributeValues[attributeId - 1] = aoi;
 
-		/*
-		 * if (aoi.isNonNativeObject()) {
-		 * allNonNativeObjects.add((NonNativeObjectInfo) aoi); } else if
-		 * (aoi.isGroup()) { // isGroup = if IsCollection || IsMap || IsArray
-		 * GroupObjectInfo goi = (GroupObjectInfo) aoi;
-		 * allNonNativeObjects.addAll(goi.getNonNativeObjects()); }
-		 */
-
+		// Keep track of all non native objects.
+		if (aoi.isNonNativeObject()) {
+			directNonNativeAttributes.add((NonNativeObjectInfo) aoi);
+		} else if (aoi.isGroup()) {
+			// isGroup = if IsCollection || IsMap || IsArray
+			GroupObjectInfo goi = (GroupObjectInfo) aoi;
+			nonDirectNonNativeObjects.addAll(goi.getNonNativeObjects());
+		}
 	}
 
 	public AbstractObjectInfo[] getAttributeValues() {
@@ -437,15 +365,16 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 	 * @return The position where this attribute is stored
 	 */
 	public long getAttributeDefinitionPosition(int attributeId) {
-		long offset = StorageEngineConstant.OBJECT_OFFSET_NB_ATTRIBUTES;
-		// delta =
-		// Skip NbAttribute (int) +
-		// Delta attribute (attributeId-1) * attribute definition size =
-		// INT+LONG
-		// Skip attribute Id (int)
-		long delta = ODBType.INTEGER.getSize() + (attributeId - 1) * (ODBType.INTEGER.getSize() + ODBType.LONG.getSize())
-				+ ODBType.INTEGER.getSize();
-		return getPosition() + offset + delta;
+		throw new NeoDatisRuntimeException(NeoDatisError.NOT_YET_IMPLEMENTED);
+		/*
+		 * long offset = StorageEngineConstant.OBJECT_OFFSET_NB_ATTRIBUTES; //
+		 * delta = // Skip NbAttribute (int) + // Delta attribute
+		 * (attributeId-1) * attribute definition size = // INT+LONG // Skip
+		 * attribute Id (int) long delta = ODBType.INTEGER.getSize() +
+		 * (attributeId - 1) * (ODBType.INTEGER.getSize() +
+		 * ODBType.LONG.getSize()) + ODBType.INTEGER.getSize(); return
+		 * getPosition() + offset + delta;
+		 */
 	}
 
 	public void setObject(Object object) {
@@ -464,17 +393,27 @@ public class NonNativeObjectInfo extends AbstractObjectInfo {
 		return objectHeader.hashCode();
 	}
 
-	/*
-	 * public IOdbList<NonNativeObjectInfo> getAllNonNativeAttributes() { return
-	 * allNonNativeObjects; }
-	 */
-
 	/**
 	 * @param header
 	 */
 	public void setHeader(ObjectInfoHeader header) {
 		this.objectHeader = header;
+	}
 
+	public IOdbList<NonNativeObjectInfo> getDirectNonNativeAttributes() {
+		return directNonNativeAttributes;
+	}
+
+	public void setDirectNonNativeAttributes(IOdbList<NonNativeObjectInfo> directNonNativeAttributes) {
+		this.directNonNativeAttributes = directNonNativeAttributes;
+	}
+
+	public IOdbList<NonNativeObjectInfo> getNonDirectNonNativeObjects() {
+		return nonDirectNonNativeObjects;
+	}
+
+	public void setNonDirectNonNativeObjects(IOdbList<NonNativeObjectInfo> nonDirectNonNativeObjects) {
+		this.nonDirectNonNativeObjects = nonDirectNonNativeObjects;
 	}
 
 }

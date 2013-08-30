@@ -20,16 +20,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class AddIndexMessageResponse extends Message {
-	public AddIndexMessageResponse(String baseId, String connectionId, String error){
-		super(Command.ADD_UNIQUE_INDEX, baseId,connectionId);
+	public AddIndexMessageResponse(){
+		super();
+	}
+	public AddIndexMessageResponse(String baseId, String sessionId, String error){
+		super(MessageType.ADD_UNIQUE_INDEX_RESPONSE, baseId,sessionId);
 		setError(error);
 	}
-	public AddIndexMessageResponse(String baseId, String connectionId){
-		super(Command.ADD_UNIQUE_INDEX, baseId,connectionId);
+	public AddIndexMessageResponse(String baseId, String sessionId){
+		super(MessageType.ADD_UNIQUE_INDEX_RESPONSE, baseId,sessionId);
 	}
 }

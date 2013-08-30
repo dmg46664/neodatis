@@ -20,7 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.query;
 
-import org.neodatis.tool.wrappers.OdbComparable;
 
 
 /**
@@ -33,7 +32,7 @@ import org.neodatis.tool.wrappers.OdbComparable;
 public class ComposedCompareKey extends CompareKey{
     private Comparable [] keys;
     
-    public ComposedCompareKey(OdbComparable [] keys){
+    public ComposedCompareKey(Comparable [] keys){
         this.keys = keys;
     }
 

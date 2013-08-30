@@ -22,19 +22,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 package org.neodatis.odb.core.query.nq;
 
 import org.neodatis.odb.core.query.AbstractQuery;
-import org.neodatis.odb.core.query.execution.IQueryExecutionPlan;
+import org.neodatis.odb.core.query.IQueryExecutionPlan;
 
-public abstract class NativeQuery extends AbstractQuery{
+public abstract class NativeQuery<T> extends AbstractQuery{
 
-	abstract public boolean match(Object object);
-
-	abstract public Class getObjectType();
-    
-	public Class[] getObjectTypes(){
-		Class [] classes = new Class[1];
-		classes[0] = getObjectType();
-		return classes;
-	}
+	abstract public boolean match(T object);
 
 	public String[] getIndexFields(){
 		return new String[0];

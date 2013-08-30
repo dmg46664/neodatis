@@ -21,7 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.layers.layer2.meta;
 
-import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 
 
 
@@ -31,17 +31,16 @@ import org.neodatis.odb.OID;
  *
  */
 public class NonNativeDeletedObjectInfo  extends NonNativeObjectInfo{
-	private OID oid;
-	public NonNativeDeletedObjectInfo(long position, OID oid) {
+	private ObjectOid oid;
+	public NonNativeDeletedObjectInfo( ObjectOid oid) {
 		super(null,null);
-		this.position = position;
 		this.oid = oid;
 	}
 	
 	public String toString() {
 		return "deleted";
 	}
-	public OID getOid(){
+	public ObjectOid getOid(){
 		return oid;
 	}
     public boolean hasChanged(AbstractObjectInfo aoi) {

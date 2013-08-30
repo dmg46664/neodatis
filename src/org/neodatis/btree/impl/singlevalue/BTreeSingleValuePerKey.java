@@ -22,14 +22,17 @@ package org.neodatis.btree.impl.singlevalue;
 
 import java.util.Iterator;
 
+import org.neodatis.OrderByConstants;
 import org.neodatis.btree.BTreeIteratorSingleValuePerKey;
 import org.neodatis.btree.IBTreeNodeOneValuePerKey;
 import org.neodatis.btree.IBTreePersister;
 import org.neodatis.btree.IBTreeSingleValuePerKey;
 import org.neodatis.btree.impl.AbstractBTree;
-import org.neodatis.odb.core.OrderByConstants;
 
 public abstract class BTreeSingleValuePerKey extends AbstractBTree implements IBTreeSingleValuePerKey{
+
+	
+	private boolean replaceOnDuplicate;
 
 	public BTreeSingleValuePerKey() {
 	}
@@ -45,6 +48,10 @@ public abstract class BTreeSingleValuePerKey extends AbstractBTree implements IB
 	
 	public Iterator iterator(OrderByConstants orderBy) {
 		return new BTreeIteratorSingleValuePerKey(this,orderBy);
+	}
+	
+	public void setReplaceOnDuplicate(boolean yesNo){
+		this.replaceOnDuplicate = yesNo;
 	}
 
 }

@@ -23,15 +23,13 @@ package org.neodatis.odb.core.server.message;
 import java.util.Map;
 
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 public class CheckMetaModelCompatibilityMessage extends Message{
 
 	private Map<String, ClassInfo> currentCIs;
 
 	public CheckMetaModelCompatibilityMessage(String baseId,String sessionId, Map<String, ClassInfo> currentCIs) {
-		super(Command.CHECK_META_MODEL_COMPATIBILITY,baseId,sessionId);
+		super(MessageType.CHECK_META_MODEL_COMPATIBILITY,baseId,sessionId);
 		this.currentCIs = currentCIs;
 	}
 	public String toString() {

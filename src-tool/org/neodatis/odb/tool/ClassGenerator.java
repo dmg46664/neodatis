@@ -10,13 +10,12 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.Iterator;
 
+import org.neodatis.odb.NeoDatis;
 import org.neodatis.odb.ODB;
-import org.neodatis.odb.ODBFactory;
-import org.neodatis.odb.OdbConfiguration;
 import org.neodatis.odb.core.layers.layer2.meta.ClassAttributeInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
 import org.neodatis.odb.core.layers.layer2.meta.MetaModel;
-import org.neodatis.odb.impl.core.layers.layer3.engine.Dummy;
+import org.neodatis.odb.core.layers.layer4.engine.Dummy;
 import org.neodatis.tool.DLogger;
 import org.neodatis.tool.wrappers.OdbClassUtil;
 import org.neodatis.tool.wrappers.list.IOdbList;
@@ -29,7 +28,7 @@ public class ClassGenerator {
 	
 	public void genereateClasses(String sourceFolder, ODB odb) throws IOException{
 		DLogger.info(String.format("Generating classes to %s",sourceFolder));
-		MetaModel metaModel = Dummy.getEngine(odb).getSession(true).getMetaModel();
+		MetaModel metaModel = Dummy.getEngine(odb).getSession().getMetaModel();
 		
 		Collection<ClassInfo> cis = metaModel.getUserClasses();
 		
@@ -83,10 +82,9 @@ public class ClassGenerator {
 	}
 	
 	public static void main(String[] args) throws IOException {
-		OdbConfiguration.setCheckModelCompatibility(false);
-		ODB odb = ODBFactory.open("d:/tmp/exercise_diary.odb");
+		ODB odb = NeoDatis.open("/Users/olivier/MyApps/Gyowanny/eseller_db_new.odb", NeoDatis.getConfig().setCheckMetaModelCompatibility(false));
 		ClassGenerator generator = new ClassGenerator();
-		generator.genereateClasses("D:/Projects/NeoDatis/odb/ODBDist/releases/neodatis-odb-1.9.562/src/src.jar Folder/test" , odb);
+		generator.genereateClasses("/Users/olivier/Data/Eclipse/WorkSpace/NeoDatis/Test/src" , odb);
 	}
 
 

@@ -5,9 +5,9 @@ package org.neodatis.btree;
 
 import java.util.Iterator;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.OrderByConstants;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.core.NeoDatisError;
-import org.neodatis.odb.core.OrderByConstants;
 
 /**
  * @author olivier
@@ -49,7 +49,7 @@ public abstract class AbstractBTreeIterator implements Iterator {
 	public Object next() {
 
 		if (currentKeyIndex > currentNode.getNbKeys() || nbReturnedElements >= btree.getSize()) {
-			throw new ODBRuntimeException(NeoDatisError.NO_MORE_OBJECTS_IN_COLLECTION);
+			throw new NeoDatisRuntimeException(NeoDatisError.NO_MORE_OBJECTS_IN_COLLECTION);
 		}
 		if (orderByType.isOrderByDesc()) {
 			return nextDesc();
@@ -115,6 +115,9 @@ public abstract class AbstractBTreeIterator implements Iterator {
 	}
 
 	private int indexOfChild(IBTreeNode parent, IBTreeNode child) {
+		if(parent==null){
+			System.out.println("parent is null");
+		}
 		for (int i = 0; i < parent.getNbChildren(); i++) {
 			if (parent.getChildAt(i, true).getId() == child.getId()) {
 				return i;

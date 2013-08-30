@@ -21,10 +21,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.trigger;
 
-import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.ObjectRepresentation;
+import org.neodatis.odb.core.session.ExecutionType;
 
 public abstract class UpdateTrigger extends Trigger{   
-    public abstract boolean beforeUpdate(final ObjectRepresentation oldObjectRepresentation,Object newObject,OID oid);
-    public abstract void afterUpdate(final ObjectRepresentation oldObjectRepresentation,Object newObject,OID oid);
+    public abstract boolean beforeUpdate(final ObjectRepresentation oldObjectRepresentation,Object newObject,ObjectOid oid);
+    public abstract void afterUpdate(final ObjectRepresentation oldObjectRepresentation,Object newObject,ObjectOid oid);
+    
+    @Override
+    public int getExecutionType() {
+    	return ExecutionType.CLIENT;
+    }
+
 }

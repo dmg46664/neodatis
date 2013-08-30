@@ -26,32 +26,25 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 
 import javax.swing.JButton;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 
-import org.neodatis.odb.core.server.message.GetSessionsMessage;
-import org.neodatis.odb.core.server.message.GetSessionsMessageResponse;
 import org.neodatis.odb.gui.Messages;
 import org.neodatis.odb.gui.tool.GuiUtil;
-import org.neodatis.odb.impl.core.server.layers.layer3.engine.ServerAdmin;
-import org.neodatis.tool.DisplayUtility;
-import org.neodatis.tool.wrappers.OdbString;
 
 public class SessionMonitorPanel extends JPanel implements ActionListener {
 	public final static SimpleDateFormat sdt = new SimpleDateFormat("HH:mm:ss");
 
 	private JButton btRefresh;
 	private JTextArea textArea;
-	private ServerAdmin serverAdmin;
+	//private ServerAdmin serverAdmin;
 
 	public SessionMonitorPanel(String host, int port) {
 		super();
-		this.serverAdmin = new ServerAdmin(host, port);
+		//this.serverAdmin = new ServerAdmin(host, port);
 		initGUI();
 	}
 
@@ -63,7 +56,7 @@ public class SessionMonitorPanel extends JPanel implements ActionListener {
 		textArea = new JTextArea(20, 50);
 
 		JPanel headerPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-		headerPanel.add(new JLabel(serverAdmin.getHost() + ":" + serverAdmin.getPort()));
+		//headerPanel.add(new JLabel(serverAdmin.getHost() + ":" + serverAdmin.getPort()));
 		headerPanel.add(btRefresh);
 
 		setLayout(new BorderLayout(5, 5));
@@ -80,6 +73,7 @@ public class SessionMonitorPanel extends JPanel implements ActionListener {
 	}
 
 	private void refresh() {
+		/*
 		GetSessionsMessage message = new GetSessionsMessage();
 		try {
 			GetSessionsMessageResponse rmessage = (GetSessionsMessageResponse) serverAdmin.sendMessage(message);
@@ -103,7 +97,7 @@ public class SessionMonitorPanel extends JPanel implements ActionListener {
 			String msg = "Error while getting sessions status " + OdbString.exceptionToString(e, false);
 			textArea.setText(msg);
 		}
-
+	*/
 	}
 
 }

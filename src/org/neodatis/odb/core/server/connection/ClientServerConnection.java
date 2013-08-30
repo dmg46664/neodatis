@@ -20,26 +20,33 @@
  */
 package org.neodatis.odb.core.server.connection;
 
+import java.io.File;
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.neodatis.odb.ClassOid;
+import org.neodatis.odb.ODB;
+import org.neodatis.odb.ODBServer;
 import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.Objects;
-import org.neodatis.odb.OdbConfiguration;
-import org.neodatis.odb.TransactionId;
 import org.neodatis.odb.Values;
+import org.neodatis.odb.core.layers.layer2.instance.InstanceBuilderContext;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfoList;
 import org.neodatis.odb.core.layers.layer2.meta.MetaModel;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ObjectInfoHeader;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
-import org.neodatis.odb.core.layers.layer3.engine.CheckMetaModelResult;
+import org.neodatis.odb.core.layers.layer2.meta.ObjectRepresentationImpl;
+import org.neodatis.odb.core.layers.layer3.OidAndBytes;
 import org.neodatis.odb.core.query.QueryManager;
-import org.neodatis.odb.core.query.execution.GenericQueryExecutor;
-import org.neodatis.odb.core.server.layers.layer3.IODBServerExt;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.core.query.criteria.CriteriaQuery;
+import org.neodatis.odb.core.refactor.CheckMetaModelResult;
+import org.neodatis.odb.core.server.ServerSession;
 import org.neodatis.odb.core.server.message.AddIndexMessage;
 import org.neodatis.odb.core.server.message.AddIndexMessageResponse;
 import org.neodatis.odb.core.server.message.CheckMetaModelCompatibilityMessage;
@@ -59,29 +66,44 @@ import org.neodatis.odb.core.server.message.DeleteIndexMessageResponse;
 import org.neodatis.odb.core.server.message.DeleteObjectMessage;
 import org.neodatis.odb.core.server.message.DeleteObjectMessageResponse;
 import org.neodatis.odb.core.server.message.ErrorMessage;
-import org.neodatis.odb.core.server.message.GetMessage;
-import org.neodatis.odb.core.server.message.GetMessageResponse;
-import org.neodatis.odb.core.server.message.GetObjectFromIdMessage;
+import org.neodatis.odb.core.server.message.GetFileMessage;
+import org.neodatis.odb.core.server.message.GetFileMessageResponse;
 import org.neodatis.odb.core.server.message.GetObjectFromIdMessageResponse;
+import org.neodatis.odb.core.server.message.GetObjectFromOidMessage;
 import org.neodatis.odb.core.server.message.GetObjectHeaderFromIdMessage;
 import org.neodatis.odb.core.server.message.GetObjectHeaderFromIdMessageResponse;
 import org.neodatis.odb.core.server.message.GetObjectValuesMessage;
 import org.neodatis.odb.core.server.message.GetObjectValuesMessageResponse;
+import org.neodatis.odb.core.server.message.GetObjectsMessage;
+import org.neodatis.odb.core.server.message.GetObjectsMessageResponse;
 import org.neodatis.odb.core.server.message.GetSessionsMessage;
 import org.neodatis.odb.core.server.message.GetSessionsMessageResponse;
+import org.neodatis.odb.core.server.message.Message;
+import org.neodatis.odb.core.server.message.MessageType;
 import org.neodatis.odb.core.server.message.NewClassInfoListMessage;
 import org.neodatis.odb.core.server.message.NewClassInfoListMessageResponse;
+import org.neodatis.odb.core.server.message.NextClassInfoOidMessage;
+import org.neodatis.odb.core.server.message.NextClassInfoOidResponseMessage;
 import org.neodatis.odb.core.server.message.RebuildIndexMessage;
 import org.neodatis.odb.core.server.message.RebuildIndexMessageResponse;
 import org.neodatis.odb.core.server.message.RollbackMessage;
 import org.neodatis.odb.core.server.message.RollbackMessageResponse;
-import org.neodatis.odb.core.server.message.StoreMessage;
-import org.neodatis.odb.core.server.message.StoreMessageResponse;
-import org.neodatis.odb.core.server.transaction.ISessionManager;
-import org.neodatis.odb.core.transaction.ISession;
-import org.neodatis.odb.impl.core.layers.layer3.engine.StorageEngineConstant;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
-import org.neodatis.odb.impl.core.server.transaction.ServerSession;
+import org.neodatis.odb.core.server.message.SendFileMessage;
+import org.neodatis.odb.core.server.message.SendFileMessageResponse;
+import org.neodatis.odb.core.server.message.StoreClassInfoMessage;
+import org.neodatis.odb.core.server.message.StoreClassInfoMessageResponse;
+import org.neodatis.odb.core.server.message.StoreObjectMessage;
+import org.neodatis.odb.core.server.message.StoreObjectMessageResponse;
+import org.neodatis.odb.core.server.message.process.AsyncProcessReturn;
+import org.neodatis.odb.core.server.message.process.RemoteProcess;
+import org.neodatis.odb.core.server.message.process.RemoteProcessMessage;
+import org.neodatis.odb.core.server.message.process.RemoteProcessMessageResponse;
+import org.neodatis.odb.core.server.message.process.RemoteProcessReturn;
+import org.neodatis.odb.core.session.ExecutionType;
+import org.neodatis.odb.core.session.Session;
+import org.neodatis.odb.core.session.SessionEngine;
+import org.neodatis.odb.core.session.SessionWrapper;
+import org.neodatis.odb.main.ODBForTrigger;
 import org.neodatis.tool.DLogger;
 import org.neodatis.tool.IOUtil;
 import org.neodatis.tool.mutex.Mutex;
@@ -112,35 +134,31 @@ public abstract class ClientServerConnection {
 
 	protected boolean debug;
 
-	protected boolean automaticallyCreateDatabase;
+	protected ODBServer server;
 
-	protected IODBServerExt server;
+	protected ServerSession session;
 
-	protected ISessionManager sessionManager;
+	private static final String COMMIT_CLOSE_CONNECT_MUTEX_NAME = "commit-close-connect";
 
-	private static final String COMMIT_CLOSE_CONNECT_MUTEX_NAME = "COMMIT_CLOSE_CONNECT_MUTEX_NAME";
+	private static final String COUNT_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String COUNT_MUTEX_NAME = "COUNT_MUTEX_NAME";
+	private static final String GET_OBJECT_HEADER_FROM_ID_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String GET_OBJECT_HEADER_FROM_ID_MUTEX_NAME = "GET_OBJECT_HEADER_FROM_ID_MUTEX_NAME";
+	private static final String GET_OBJECT_FROM_ID_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String GET_OBJECT_FROM_ID_MUTEX_NAME = "GET_OBJECT_FROM_ID_MUTEX_NAME";
+	private static final String GET_VALUES_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String GET_VALUES_MUTEX_NAME = "GET_VALUES_MUTEX_NAME";
+	private static final String GET_OBJECTS_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String GET_OBJECTS_MUTEX_NAME = "GET_OBJECTS_MUTEX_NAME";
+	private static final String DELETE_OBJECT_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String DELETE_OBJECT_MUTEX_NAME = "DELETE_OBJECT_MUTEX_NAME";
+	private static final String ADD_CLASS_INFO_LIST_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String ADD_CLASS_INFO_LIST_MUTEX_NAME = "ADD_CLASS_INFO_LIST_MUTEX_NAME";
+	private static final String STORE_MUTEX_NAME = COMMIT_CLOSE_CONNECT_MUTEX_NAME;
 
-	private static final String STORE_MUTEX_NAME = "STORE_MUTEX_NAME";
-
-	public ClientServerConnection(IODBServerExt server, boolean automaticallyCreateDatabase) {
-		this.debug = OdbConfiguration.logServerConnections();
-		this.automaticallyCreateDatabase = automaticallyCreateDatabase;
+	public ClientServerConnection(ODBServer server) {
+		this.debug = server.getConfig().logServerConnections();
 		this.server = server;
-		this.sessionManager = OdbConfiguration.getCoreProvider().getClientServerSessionManager();
 	}
 
 	public abstract String getName();
@@ -157,45 +175,55 @@ public abstract class ClientServerConnection {
 
 		try {
 			nbMessages++;
-			int commandId = message.getCommandId();
+			int commandId = message.getMessageType();
 
 			switch (commandId) {
-			case Command.CONNECT:
+			case MessageType.CONNECT:
 				return manageConnectCommand((ConnectMessage) message);
-			case Command.GET:
-				return manageGetObjectsCommand((GetMessage) message);
-			case Command.GET_OBJECT_FROM_ID:
-				return manageGetObjectFromIdCommand((GetObjectFromIdMessage) message);
-			case Command.GET_OBJECT_HEADER_FROM_ID:
+			case MessageType.GET_OBJECTS:
+				return manageGetObjectsCommand((GetObjectsMessage) message);
+			case MessageType.GET_OBJECT_FROM_ID:
+				return manageGetObjectFromIdCommand((GetObjectFromOidMessage) message);
+			case MessageType.GET_OBJECT_HEADER_FROM_ID:
 				return manageGetObjectHeaderFromIdCommand((GetObjectHeaderFromIdMessage) message);
-			case Command.STORE:
-				return manageStoreCommand((StoreMessage) message);
-			case Command.DELETE_OBJECT:
+			case MessageType.STORE_OBJECT:
+				return manageStoreObjectCommand((StoreObjectMessage) message);
+			case MessageType.STORE_CLASS_INFO:
+				return manageStoreClassInfoCommand((StoreClassInfoMessage) message);
+			case MessageType.DELETE_OBJECT:
 				return manageDeleteObjectCommand((DeleteObjectMessage) message);
-			case Command.CLOSE:
+			case MessageType.CLOSE:
 				return manageCloseCommand((CloseMessage) message);
-			case Command.COMMIT:
+			case MessageType.COMMIT:
 				return manageCommitCommand((CommitMessage) message);
-			case Command.ROLLBACK:
+			case MessageType.ROLLBACK:
 				return manageRollbackCommand((RollbackMessage) message);
-			case Command.DELETE_BASE:
+			case MessageType.DELETE_BASE:
 				return manageDeleteBaseCommand((DeleteBaseMessage) message);
-			case Command.GET_SESSIONS:
+			case MessageType.GET_SESSIONS:
 				return manageGetSessionsCommand((GetSessionsMessage) message);
-			case Command.ADD_UNIQUE_INDEX:
+			case MessageType.ADD_UNIQUE_INDEX:
 				return manageAddIndexCommand((AddIndexMessage) message);
-			case Command.REBUILD_INDEX:
+			case MessageType.REBUILD_INDEX:
 				return manageRebuildIndexCommand((RebuildIndexMessage) message);
-			case Command.DELETE_INDEX:
+			case MessageType.DELETE_INDEX:
 				return manageDeleteIndexCommand((DeleteIndexMessage) message);
-			case Command.ADD_CLASS_INFO_LIST:
+			case MessageType.ADD_CLASS_INFO_LIST:
 				return manageAddClassInfoListCommand((NewClassInfoListMessage) message);
-			case Command.COUNT:
+			case MessageType.COUNT:
 				return manageCountCommand((CountMessage) message);
-			case Command.GET_OBJECT_VALUES:
+			case MessageType.GET_OBJECT_VALUES:
 				return manageGetObjectValuesCommand((GetObjectValuesMessage) message);
-			case Command.CHECK_META_MODEL_COMPATIBILITY:
+			case MessageType.CHECK_META_MODEL_COMPATIBILITY:
 				return manageCheckMetaModelCompatibilityCommand((CheckMetaModelCompatibilityMessage) message);
+			case MessageType.NEXT_CLASS_INFO_OID:
+				return manageNextClassInfoOidCommand((NextClassInfoOidMessage) message);
+			case MessageType.SEND_FILE:
+				return manageSendFileCommand((SendFileMessage) message);
+			case MessageType.GET_FILE:
+				return manageGetFileCommand((GetFileMessage) message);
+			case MessageType.REMOTE_PROCESS:
+				return manageRemoteProcessCommand((RemoteProcessMessage) message);
 
 			default:
 				break;
@@ -210,7 +238,7 @@ public abstract class ClientServerConnection {
 			if (debug) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("[").append(nbMessages).append("] ");
-				buffer.append(message.toString()).append(" - Thread=").append(getName()).append(" - connectionId =").append(connectionId)
+				buffer.append(message.toString()).append(" - Thread=").append(getName()).append(" - sessionId =").append(message.getSessionId())
 						.append(" - duration=").append((end - start));
 				DLogger.info(buffer);
 			}
@@ -219,8 +247,31 @@ public abstract class ClientServerConnection {
 
 	}
 
-	public ServerSession getSession(String baseIdentifier) {
-		return (ServerSession) sessionManager.getSession(baseIdentifier, true);
+	/**
+	 * @param message
+	 * @return
+	 */
+	private Message manageNextClassInfoOidCommand(NextClassInfoOidMessage message) {
+		// Gets the base identifier
+		String baseIdentifier = message.getBaseIdentifier();
+		Mutex mutex = null;
+		try {
+			mutex = MutexFactory.get(baseIdentifier).acquire(ADD_CLASS_INFO_LIST_MUTEX_NAME);
+
+			SessionEngine engine = session.getEngine();
+			ClassOid coid = engine.getStorageEngine().getOidGenerator().createClassOid();
+			return new NextClassInfoOidResponseMessage(baseIdentifier, message.getSessionId(), coid);
+		} catch (Exception e) {
+			String se = OdbString.exceptionToString(e, false);
+			String msg = baseIdentifier + ":Error while getting next ClassInfo Oid";
+			DLogger.error(msg, e);
+			return new NewClassInfoListMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
+		} finally {
+			if (mutex != null) {
+				mutex.release("nextClassInfoOid");
+			}
+		}
+
 	}
 
 	/**
@@ -234,22 +285,22 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
+		// Gets the session manager for this base identifier
+		SessionManager sessionManager = null;
+		Session session = null;
 		try {
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new CheckMetaModelCompatibilityMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+				return new CheckMetaModelCompatibilityMessageResponse(baseIdentifier, message.getSessionId(), buffer.toString());
 			}
 
-			connection = connectionManager.getConnection(message.getConnectionId());
-			ServerSession session = getSession(baseIdentifier);
-			IStorageEngine engine = connection.getStorageEngine();
+			session = sessionManager.getSession(message.getSessionId());
+
+			SessionEngine engine = session.getEngine();
 			Map<String, ClassInfo> currentCIs = message.getCurrentCIs();
 
 			CheckMetaModelResult result = engine.checkMetaModelCompatibility(currentCIs);
@@ -257,18 +308,14 @@ public abstract class ClientServerConnection {
 			MetaModel updatedMetaModel = null;
 			if (result.isModelHasBeenUpdated()) {
 				updatedMetaModel = session.getMetaModel().duplicate();
-				// This is to avoid message streamer think that meta model did
-				// not change
-				clearMessageStreamerCache();
 			}
 			// If meta model has been updated, returns it to clients
-			return new CheckMetaModelCompatibilityMessageResponse(baseIdentifier, message.getConnectionId(), result, updatedMetaModel);
+			return new CheckMetaModelCompatibilityMessageResponse(baseIdentifier, message.getSessionId(), result, updatedMetaModel);
 		} catch (Exception e) {
 			DLogger.error(baseIdentifier + ":Server error while closing", e);
-			return new CheckMetaModelCompatibilityMessageResponse(baseIdentifier, message.getConnectionId(), OdbString.exceptionToString(e,
+			return new CheckMetaModelCompatibilityMessageResponse(baseIdentifier, message.getSessionId(), OdbString.exceptionToString(e,
 					false));
 		}
-
 	}
 
 	/**
@@ -281,30 +328,30 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
+		// Gets the session manager for this base identifier
+		SessionManager sessionManager = null;
+		Session session = null;
 		try {
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new AddIndexMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+				return new AddIndexMessageResponse(baseIdentifier, message.getSessionId(), buffer.toString());
 			}
 
-			connection = connectionManager.getConnection(message.getConnectionId());
+			session = sessionManager.getSession(message.getSessionId());
 
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 			engine.addIndexOn(message.getClassName(), message.getIndexName(), message.getIndexFieldNames(), message.isVerbose(), message
 					.acceptMultipleValuesForSameKey());
 		} catch (Exception e) {
 			DLogger.error(baseIdentifier + ":Server error while closing", e);
-			return new AddIndexMessageResponse(baseIdentifier, message.getConnectionId(), OdbString.exceptionToString(e, false));
+			return new AddIndexMessageResponse(baseIdentifier, message.getSessionId(), OdbString.exceptionToString(e, false));
 		}
 
-		return new AddIndexMessageResponse(baseIdentifier, message.getConnectionId());
+		return new AddIndexMessageResponse(baseIdentifier, message.getSessionId());
 	}
 
 	/**
@@ -317,29 +364,29 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
+		// Gets the session manager for this base identifier
+		SessionManager sessionManager = null;
+		Session session = null;
 		try {
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new RebuildIndexMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+				return new RebuildIndexMessageResponse(baseIdentifier, message.getSessionId(), buffer.toString());
 			}
 
-			connection = connectionManager.getConnection(message.getConnectionId());
+			session = sessionManager.getSession(message.getSessionId());
 
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 			engine.rebuildIndex(message.getClassName(), message.getIndexName(), message.isVerbose());
 		} catch (Exception e) {
 			DLogger.error(baseIdentifier + ":Server error while closing", e);
-			return new RebuildIndexMessageResponse(baseIdentifier, message.getConnectionId(), OdbString.exceptionToString(e, false));
+			return new RebuildIndexMessageResponse(baseIdentifier, message.getSessionId(), OdbString.exceptionToString(e, false));
 		}
 
-		return new RebuildIndexMessageResponse(baseIdentifier, message.getConnectionId());
+		return new RebuildIndexMessageResponse(baseIdentifier, message.getSessionId());
 	}
 
 	/**
@@ -352,37 +399,37 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
+		// Gets the session manager for this base identifier
+		SessionManager sessionManager = null;
+		Session session = null;
 		try {
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new DeleteIndexMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+				return new DeleteIndexMessageResponse(baseIdentifier, message.getSessionId(), buffer.toString());
 			}
 
-			connection = connectionManager.getConnection(message.getConnectionId());
+			session = sessionManager.getSession(message.getSessionId());
 
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 			engine.deleteIndex(message.getClassName(), message.getIndexName(), message.isVerbose());
 		} catch (Exception e) {
 			DLogger.error(baseIdentifier + ":Server error while closing", e);
-			return new DeleteIndexMessageResponse(baseIdentifier, message.getConnectionId(), OdbString.exceptionToString(e, false));
+			return new DeleteIndexMessageResponse(baseIdentifier, message.getSessionId(), OdbString.exceptionToString(e, false));
 		}
 
-		return new DeleteIndexMessageResponse(baseIdentifier, message.getConnectionId());
+		return new DeleteIndexMessageResponse(baseIdentifier, message.getSessionId());
 	}
 
-	private ConnectionManager getConnectionManager(String baseIdentifier) throws Exception {
-		return getConnectionManager(baseIdentifier, null, null, false);
+	private SessionManager getSessionManager(String baseIdentifier) throws Exception {
+		return getSessionManager(baseIdentifier, null, null, false);
 	}
 
 	/**
-	 * Gets the connection manager for the base
+	 * Gets the session manager for the base
 	 * 
 	 * @param baseIdentifier
 	 * @param user
@@ -391,31 +438,30 @@ public abstract class ClientServerConnection {
 	 * @return
 	 * @throws Exception
 	 */
-	private ConnectionManager getConnectionManager(String baseIdentifier, String user, String password, boolean returnNullIfDoesNotExit)
+	private SessionManager getSessionManager(String baseIdentifier, String user, String password, boolean returnNullIfDoesNotExit)
 			throws Exception {
 
 		try {
 
-			// Gets the connection manager for this base identifier
-			ConnectionManager connectionManager = (ConnectionManager) server.getConnectionManagers().get(baseIdentifier);
-			if (connectionManager == null && returnNullIfDoesNotExit) {
+			// Gets the session manager for this base identifier
+			SessionManager sessionManager = (SessionManager) server.getSessionManagerForBase(baseIdentifier);
+			if (sessionManager == null && returnNullIfDoesNotExit) {
 				return null;
 			}
-			if (connectionManager == null && automaticallyCreateDatabase) {
+			if (sessionManager == null && server.automaticallyCreateDatabase()) {
 				server.addBase(baseIdentifier, baseIdentifier, user, password);
-				connectionManager = (ConnectionManager) server.getConnectionManagers().get(baseIdentifier);
+				sessionManager = (SessionManager) server.getSessionManagerForBase(baseIdentifier);
 			}
-			if (connectionManager == null && !automaticallyCreateDatabase) {
+			if (sessionManager == null && !server.automaticallyCreateDatabase()) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
 				return null;
 			}
-			return connectionManager;
+			return sessionManager;
 		} finally {
 		}
 
 	}
-
 
 	/**
 	 * manages the Close Message
@@ -427,34 +473,28 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(COMMIT_CLOSE_CONNECT_MUTEX_NAME);
 
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			SessionManager sessionManager = getSessionManager(baseIdentifier);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new CloseMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+				return new CloseMessageResponse(baseIdentifier, message.getSessionId(), buffer.toString());
 			}
 
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_CLOSE);
-			connection.close();
-			connectionManager.removeConnection(connection);
-			sessionManager.removeSession(baseIdentifier);
+			session.setCurrentAction(ConnectionAction.ACTION_CLOSE);
+			session.close();
+			sessionManager.removeSession(session);
 
 			connectionIsUp = false;
-			return new CloseMessageResponse(baseIdentifier, message.getConnectionId());
+			return new CloseMessageResponse(baseIdentifier, message.getSessionId());
 
 		} catch (Exception e) {
 			DLogger.error(baseIdentifier + ":Server error while closing", e);
-			return new CloseMessageResponse(baseIdentifier, message.getConnectionId(), OdbString.exceptionToString(e, false));
+			return new CloseMessageResponse(baseIdentifier, message.getSessionId(), OdbString.exceptionToString(e, false));
 		} finally {
 			if (mutex != null) {
 				mutex.release("close");
@@ -465,7 +505,7 @@ public abstract class ClientServerConnection {
 
 	private Message manageGetSessionsCommand(GetSessionsMessage message) {
 		try {
-			List<String> descriptions = sessionManager.getSessionDescriptions(server.getConnectionManagers());
+			List<String> descriptions = server.getSessionDescriptions();
 			return new GetSessionsMessageResponse(descriptions);
 		} catch (Exception e) {
 			DLogger.error("Server error while getting session descriptions", e);
@@ -476,33 +516,21 @@ public abstract class ClientServerConnection {
 	private Message manageCommitCommand(CommitMessage message) {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(COMMIT_CLOSE_CONNECT_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
-
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new CommitMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
-			}
-
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_COMMIT);
-
-			connection.commit();
-			return new CommitMessageResponse(baseIdentifier, message.getConnectionId(), true);
+			session.setCurrentAction(ConnectionAction.ACTION_COMMIT);
+			session.commit();
+			
+			return new CommitMessageResponse(baseIdentifier, message.getSessionId(), true);
 		} catch (Exception e) {
 			DLogger.error(baseIdentifier + ":Server error while commiting", e);
-			return new CommitMessageResponse(baseIdentifier, message.getConnectionId(), OdbString.exceptionToString(e, false));
+			return new CommitMessageResponse(baseIdentifier, message.getSessionId(), OdbString.exceptionToString(e, false));
 		} finally {
 			if (mutex != null) {
 				mutex.release("commit");
 			}
-			connection.endCurrentAction();
+			session.endCurrentAction();
 		}
 
 	}
@@ -510,35 +538,22 @@ public abstract class ClientServerConnection {
 	private Message manageRollbackCommand(RollbackMessage message) {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(COMMIT_CLOSE_CONNECT_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
-
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new RollbackMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
-			}
-
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_ROLLBACK);
-
-			connection.rollback();
+			session.setCurrentAction(ConnectionAction.ACTION_ROLLBACK);
+			session.rollback();
 		} catch (Exception e) {
 			DLogger.error(baseIdentifier + ":Server error while rollbacking", e);
-			return new RollbackMessageResponse(baseIdentifier, message.getConnectionId(), OdbString.exceptionToString(e, false));
+			return new RollbackMessageResponse(baseIdentifier, message.getSessionId(), OdbString.exceptionToString(e, false));
 
 		} finally {
 			if (mutex != null) {
 				mutex.release("rollback");
 			}
-			connection.endCurrentAction();
+			session.endCurrentAction();
 		}
-		return new RollbackMessageResponse(baseIdentifier, message.getConnectionId(), true);
+		return new RollbackMessageResponse(baseIdentifier, message.getSessionId(), true);
 
 	}
 
@@ -554,76 +569,152 @@ public abstract class ClientServerConnection {
 	 * @return
 	 */
 
-	private Message manageStoreCommand(StoreMessage message) {
+	private Message manageStoreObjectCommand(StoreObjectMessage message) {
 
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
 		Mutex mutex = null;
-		OID oid = message.getNnoi().getOid();
-		ServerSession session = null;
+		ObjectOid oid = null;
 		try {
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
 
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new StoreMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+			SessionEngine engine = session.getEngine();
+
+			// To know if an object is new, the clients oids have a flag :
+			// isNew. To get the flag back, we build here a map with oid,oid to
+			// get retrieve it
+			Map<ObjectOid, ObjectOid> clientIds = new HashMap<ObjectOid, ObjectOid>();
+			for (ObjectOid ooid : message.getClientIds()) {
+				clientIds.put(ooid, ooid);
 			}
-
-			connection = connectionManager.getConnection(message.getConnectionId());
-
-			session = getSession(baseIdentifier);
-			IStorageEngine engine = connection.getStorageEngine();
-			session.setClientIds(message.getClientIds());
-			boolean objectIsNew = oid == StorageEngineConstant.NULL_OBJECT_ID;
-
-			if (objectIsNew) {
-				connection.setCurrentAction(ConnectionAction.ACTION_INSERT);
-				mutex = MutexFactory.get(baseIdentifier).acquire("store");
-				oid = engine.writeObjectInfo(StorageEngineConstant.NULL_OBJECT_ID, message.getNnoi(),
-						StorageEngineConstant.POSITION_NOT_INITIALIZED, false);
-			} else {
-				connection.setCurrentAction(ConnectionAction.ACTION_UPDATE);
-				// If object is not new, ODB is going to execute an Update.
-				// Here we must lock the object with the oid to avoid a
-				// concurrent update
-				// This is done by creating a special mutex with the base
-				// identifier and the oid.
-				// This mutex will be kept in the connection and only released
-				// when committing
-				// or rollbacking the connection
-				connection.lockObjectWithOid(oid);
-				// If object lock is ok, then get the mutex of the database
-				mutex = MutexFactory.get(baseIdentifier).acquire(STORE_MUTEX_NAME);
-				// If oid is not -1, the object already exist, we must update
-				oid = engine.updateObject(message.getNnoi(), false);
-			}
-
-			return new StoreMessageResponse(baseIdentifier, message.getConnectionId(), oid, objectIsNew, message.getClientIds(), session
-					.getServerIds(), session.getValuesToReturn());
-		} catch (Exception e) {
-			if (oid != null) {
-				try {
-					connection.unlockObjectWithOid(message.getNnoi().getOid());
-				} catch (Exception e1) {
-					DLogger.error("Error while unlocking object with oid " + oid + " : " + OdbString.exceptionToString(e1, true));
+			OidAndBytes mainOab = message.getOabs().get(0);
+			ObjectOid mainOid = (ObjectOid) mainOab.oid;
+			session.setCurrentAction(ConnectionAction.ACTION_INSERT_OR_UPDATE);
+			boolean objectIsNew = clientIds.get(mainOid).isNew();
+			ObjectOid[] serverOids = new ObjectOid[message.getClientIds().length];
+			/*TODO : even objects that don't have relations should come back to layer2 as they have the oid in the bytes. So we should come back to layer 2 to change the oid
+			 * 	one faster way would be to write directly to the bytes the new oid at the right position but it is a bit risky
+			if (message.getOabs().size() == 1) {
+				// The object being inserted does not have relation to other
+				// objects
+				// No problem with replacing client oids by server oids
+				ObjectOid ooid = clientIds.get(mainOid);
+				if (ooid.isNew()) {
+					// The oid is new so, it has been created on the client
+					// side, it must be replaced by a server id
+					ooid = engine.getLayer4().getoidGenerator().getNextObjectOid(mainOid.getClassOid());
+					serverOids[0] = ooid;
 				}
-			}
+				mainOab.oid = ooid;
+				engine.layer3ToLayer4(message.getOabs());
+				oid = ooid;
+			} else {
+			*/
+				// The object being stored has relations, we need to come back
+				// to layer 2 (nnoi) and replace client oids (when needed) by
+				// server oids
+				Map<OID, OID> oidsToReplace = new HashMap<OID, OID>();
+				for (int i=0;i<message.getOabs().size();i++) {
+					OidAndBytes oab = message.getOabs().get(i);
+					ObjectOid oid2 = (ObjectOid) oab.oid;
+					// Gets the oid with the 'isNew' flag
+					ObjectOid clientOid = clientIds.get(oid2);
+					if (clientOid.isNew()) {
+						// gets a server oid only if oid is new
+						ObjectOid serverOid = engine.getStorageEngine().getOidGenerator().createObjectOid(oid2.getClassOid());
+						oidsToReplace.put(oid2, serverOid);
+						serverOids[i] = serverOid;
+						serverOid.setIsNew(true);
+					}
+				}
+				/*if (oidsToReplace.isEmpty()) {
+					// we are only updating, so all s are already server side
+					// oids
+					// no need to replace oids
+					engine.layer3ToLayer4(message.getOabs());
+					oid = mainOid;
+				} else {*/
+					// else we come back to layer 2 and replace client oids by
+					// server oids
+					NonNativeObjectInfo nnoi = engine.layer3ToLayer2(message.getOabs(), true, oidsToReplace,0);
+					
+					String className = nnoi.getClassInfo().getFullClassName();
+					// Triggers
+					if(nnoi.getOid().isNew()){
+						if(engine.getTriggerManager().hasInsertTriggersFor(className)){
+							engine.getTriggerManager().manageInsertTriggerBefore(className, new ObjectRepresentationImpl(nnoi, engine.getObjectIntrospector()));
+						}
+					}else{
+						if(engine.getTriggerManager().hasUpdateTriggersFor(className)){
+							engine.getTriggerManager().manageUpdateTriggerBefore(className , null, new ObjectRepresentationImpl(nnoi, engine.getObjectIntrospector()), nnoi.getOid());
+						}
+					}
+					
+					oid = engine.storeMeta(nnoi.getOid(), nnoi);
+				//}
+			//}
+
+			return new StoreObjectMessageResponse(baseIdentifier, message.getSessionId(), oid, objectIsNew, serverOids, session.getValuesToReturn());
+		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
-			String msg = baseIdentifier + ":Error while storing object " + message.getNnoi();
+			String msg = baseIdentifier + ":Error while storing object ";
 			DLogger.error(msg, e);
-			return new StoreMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new StoreObjectMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
-				mutex.release("store");
+				mutex.release("storeObject");
 			}
-			connection.endCurrentAction();
-			if(session!=null){
+			session.endCurrentAction();
+			if (session != null) {
 				session.clearValuesToReturn();
 			}
+		}
+	}
+
+	private Message manageStoreClassInfoCommand(StoreClassInfoMessage message) {
+
+		// Gets the base identifier
+		String baseIdentifier = message.getBaseIdentifier();
+		Mutex mutex = null;
+		ObjectOid oid = null;
+		try {
+
+			SessionEngine engine = session.getEngine();
+
+			OidAndBytes mainOab = message.getOabs().get(0);
+			ClassOid mainOid = (ClassOid) mainOab.oid;
+			session.setCurrentAction(ConnectionAction.ACTION_INSERT_OR_UPDATE);
+			// actually store the ClassInfo in the meta model database
+			engine.layer3ToLayer4(message.getOabs());
+			
+			// here we may have a class info that has references to another class info that does not exist yet  in the meta model
+			// This happens if message.getOabs().size() >1. In this case, we need to create all ClassInfo (without their attribute), and then create the full description
+			
+			ClassInfoList ciList = new ClassInfoList();
+			for(OidAndBytes oab:message.getOabs()){
+				// false=> does not load attributes (so no problem with references to non existing CI)
+				ciList.addClassInfo(engine.classInfoFromBytes(oab,false));
+			}
+			// Then add the class infos to the meta model
+			session.getMetaModel().addClasses(ciList);
+			
+			// Now redo the same thing, with full class info description: this time the meta model already contains all CIs for references
+			for(OidAndBytes oab:message.getOabs()){
+				// Convert to class info and add to the meta model
+				ClassInfo ci = engine.classInfoFromBytes(oab,true);
+				// this will replace the non complete CI by the complete CI
+				session.getMetaModel().addClass(ci, true);			
+			}
+			return new StoreClassInfoMessageResponse(baseIdentifier, message.getSessionId(), mainOid);
+		} catch (Exception e) {
+			String se = OdbString.exceptionToString(e, false);
+			String msg = baseIdentifier + ":Error while storing class info ";
+			DLogger.error(msg, e);
+			return new StoreClassInfoMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
+		} finally {
+			if (mutex != null) {
+				mutex.release("storeClassInfo");
+			}
+			session.endCurrentAction();
 		}
 	}
 
@@ -631,27 +722,23 @@ public abstract class ClientServerConnection {
 
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
+		SessionManager sessionManager = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(ADD_CLASS_INFO_LIST_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new StoreMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+				return new StoreObjectMessageResponse(baseIdentifier, message.getSessionId(), buffer.toString());
 			}
 
-			connection = connectionManager.getConnection(message.getConnectionId());
-
-			ServerSession session = getSession(baseIdentifier);
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 
 			ClassInfoList ciList = message.getClassInfoList();
-			ciList = engine.getObjectWriter().addClasses(ciList);
+			ciList = session.addClasses(ciList);
 			// here we must create a new list with all class info because
 			// Serialization hold object references
 			// In this case, it holds the reference of the previous class info
@@ -662,15 +749,14 @@ public abstract class ClientServerConnection {
 			// mechanism to send object
 			IOdbList<ClassInfo> allClassInfos = new OdbArrayList<ClassInfo>();
 			allClassInfos.addAll(session.getMetaModel().getAllClasses());
-			NewClassInfoListMessageResponse r = new NewClassInfoListMessageResponse(baseIdentifier, message.getConnectionId(),
-					allClassInfos);
+			NewClassInfoListMessageResponse r = new NewClassInfoListMessageResponse(baseIdentifier, message.getSessionId(), allClassInfos);
 			session.resetClassInfoIds();
 			return r;
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while adding new Class Info List" + message.getClassInfoList();
 			DLogger.error(msg, e);
-			return new NewClassInfoListMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new NewClassInfoListMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("addClassInfoList");
@@ -682,37 +768,35 @@ public abstract class ClientServerConnection {
 
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
+		SessionManager sessionManager = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(DELETE_OBJECT_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier, null, null, true);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier, null, null, true);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new StoreMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
+				return new DeleteObjectMessageResponse(baseIdentifier, message.getSessionId(), buffer.toString());
 			}
 
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_DELETE);
+			session.setCurrentAction(ConnectionAction.ACTION_DELETE);
 
-			ServerSession session = (ServerSession) sessionManager.getSession(baseIdentifier, true);
-			IStorageEngine engine = connection.getStorageEngine();
-			engine.deleteObjectWithOid(message.getOid(),message.isCascade());
-			return new DeleteObjectMessageResponse(baseIdentifier, message.getConnectionId(), message.getOid());
+			SessionEngine engine = session.getEngine();
+
+			engine.deleteObjectWithOid(message.getOid(), message.isCascade());
+			return new DeleteObjectMessageResponse(baseIdentifier, message.getSessionId(), message.getOid());
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while deleting object " + message.getOid();
 			DLogger.error(msg, e);
-			return new DeleteObjectMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new DeleteObjectMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("deleteObject");
 			}
-			connection.endCurrentAction();
+			session.endCurrentAction();
 		}
 	}
 
@@ -720,19 +804,20 @@ public abstract class ClientServerConnection {
 
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
-		ConnectionManager connectionManager = null;
+		SessionManager sessionManager = null;
 		try {
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier, null, null, true);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier, null, null, true);
 
 			StringBuffer log = new StringBuffer();
 			String fileName = message.getBaseIdentifier();
 			OdbFile file = new OdbFile(fileName);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				try {
 					if (debug) {
-						log.append("Server:Connection manager is null Deleting base " + file.getFullPath()).append(" | exists?").append(file.exists());
+						log.append("Server:Connection manager is null Deleting base " + file.getFullPath()).append(" | exists?").append(
+								file.exists());
 					}
 					if (file.exists()) {
 						boolean b = IOUtil.deleteFile(file.getFullPath());
@@ -757,17 +842,14 @@ public abstract class ClientServerConnection {
 				}
 			}
 
-			IStorageEngine engine = connectionManager.getStorageEngine();
-			if (!engine.isClosed()) {
-				// Simulate a session
-				sessionManager.addSession(OdbConfiguration.getCoreProvider().getServerSession(engine, "temp"));
-				// engine.rollback();
-				engine.close();
-				sessionManager.removeSession(baseIdentifier);
-				removeConnectionManager(baseIdentifier);
+			Session session = sessionManager.getSession(message.getSessionId());
+			if (!session.isClosed()) {
+				session.close();
+				sessionManager.removeSession(session);
+				removeSessionManager(baseIdentifier);
 
 			}
-			boolean b = IOUtil.deleteFile(fileName); 
+			boolean b = IOUtil.deleteFile(fileName);
 			log.append("| deleted=").append(b);
 			if (b) {
 				return new DeleteBaseMessageResponse(baseIdentifier);
@@ -780,77 +862,79 @@ public abstract class ClientServerConnection {
 			DLogger.error(msg, e);
 			return new DeleteBaseMessageResponse(baseIdentifier, msg + ":\n" + se);
 		} finally {
-			sessionManager.removeSession(baseIdentifier);
-			removeConnectionManager(baseIdentifier);
 			connectionIsUp = false;
 		}
 	}
 
-	private void removeConnectionManager(String baseId) {
-		server.getConnectionManagers().remove(baseId);
+	private void removeSessionManager(String baseId) {
+		server.removeSessionManagerForBase(baseId);
 
 	}
 
-	private Message manageGetObjectsCommand(GetMessage message) {
+	private Message manageGetObjectsCommand(GetObjectsMessage message) {
 
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-
-		IConnection connection = null;
 		Mutex mutex = null;
 		try {
-			mutex = MutexFactory.get(baseIdentifier).acquire(GET_OBJECTS_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			//mutex = MutexFactory.get(baseIdentifier).acquire(GET_OBJECTS_MUTEX_NAME);
+			session.setCurrentAction(ConnectionAction.ACTION_SELECT);
 
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new GetMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
-			}
+			SessionManager sessionManager = server.getSessionManagerForBase(baseIdentifier);
+			
+			if (session.getConfig().lockObjectsOnSelect()) {
 
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_SELECT);
-
-			if (OdbConfiguration.lockObjectsOnSelect()) {
-				// first lock the class
 				String fullClassName = QueryManager.getFullClassName(message.getQuery());
-				//connection.lockClass(fullClassName);
+				//sessionManager.lockClassForSession(fullClassName, session, 2000);
 			}
 
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 			Objects<NonNativeObjectInfo> metaObjects = null;
-			metaObjects = engine.getObjectInfos(message.getQuery(), true, message.getStartIndex(), message.getEndIndex(), false);
 			
-			if (OdbConfiguration.lockObjectsOnSelect()) {
-				// then lock objects
+			// sets engine of the query
+			message.getQuery().setSessionEngine(engine);
+			
+			// TODO check if we can send false instead of true to reduce memory usage
+			metaObjects = engine.getMetaObjects(message.getQuery());
+			
+			if(message.isInMemory()){
+				Collection<IOdbList<OidAndBytes>> listOfOabs = new ArrayList<IOdbList<OidAndBytes>>();
+				// 	build a list with the oids
 				while(metaObjects.hasNext()){
-					OID oid = metaObjects.next().getOid();
-					connection.lockObjectWithOid(oid);	
-					System.out.println("locking object with oid " + oid);
+					NonNativeObjectInfo meta = metaObjects.next();
+					listOfOabs.add(engine.layer2ToLayer3(meta));
+					
+					if (session.getConfig().lockObjectsOnSelect()) {
+						sessionManager.lockOidForSession(meta.getOid(), session, session.getConfig().getTimeoutToAcquireMutex());
+					}
 				}
-				// and unlock class
-				String fullClassName = QueryManager.getFullClassName(message.getQuery());
-				//connection.unlockClass(fullClassName);
-			}
+				return new GetObjectsMessageResponse(baseIdentifier, message.getSessionId(), listOfOabs, message.getQuery().getExecutionPlan(),false);
+			}else{
+				Collection<ObjectOid> oids = new ArrayList<ObjectOid>();
+				// 	build a list with the oids
+				while(metaObjects.hasNext()){
+					NonNativeObjectInfo meta = metaObjects.next();
+					oids.add(meta.getOid());
+					
 
-			
-			// message.getQuery().setStorageEngine(null);
-			return new GetMessageResponse(baseIdentifier, message.getConnectionId(), metaObjects, message.getQuery().getExecutionPlan());
+					if (session.getConfig().lockObjectsOnSelect()) {
+						sessionManager.lockOidForSession(meta.getOid(), session, 10000);
+					}
+				}
+				return new GetObjectsMessageResponse(baseIdentifier, message.getSessionId(), oids, message.getQuery().getExecutionPlan());
+			}
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while getting objects for query " + message.getQuery();
 			DLogger.error(msg, e);
 
-			return new GetMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new GetObjectsMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("getObjects");
 			}
-			connection.endCurrentAction();
+			session.endCurrentAction();
 		}
 	}
 
@@ -859,83 +943,56 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-
-		IConnection connection = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(GET_VALUES_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			session.setCurrentAction(ConnectionAction.ACTION_SELECT);
 
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new GetMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
-			}
-
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_SELECT);
-
-			IStorageEngine engine = connection.getStorageEngine();
-			Values values = engine.getValues(message.getQuery(), message.getStartIndex(), message.getEndIndex());
-			return new GetObjectValuesMessageResponse(baseIdentifier, message.getConnectionId(), values, message.getQuery()
-					.getExecutionPlan());
+			SessionEngine engine = session.getEngine();
+			Values values = engine.getValues(message.getQuery());
+			return new GetObjectValuesMessageResponse(baseIdentifier, message.getSessionId(), values, message.getQuery().getExecutionPlan());
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while getting objects for query " + message.getQuery();
 			DLogger.error(msg, e);
 
-			return new GetObjectValuesMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new GetObjectValuesMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("getObjects");
 			}
-			connection.endCurrentAction();
+			session.endCurrentAction();
 		}
 	}
 
-	private Message manageGetObjectFromIdCommand(GetObjectFromIdMessage message) {
+	private Message manageGetObjectFromIdCommand(GetObjectFromOidMessage message) {
 
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-
-		IConnection connection = null;
-		OID oid = null;
+		ObjectOid oid = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(GET_OBJECT_FROM_ID_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
+			session.setCurrentAction(ConnectionAction.ACTION_SELECT);
 
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new GetObjectFromIdMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
-			}
-
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_SELECT);
-
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 			oid = message.getOid();
-			NonNativeObjectInfo nnoi = engine.getMetaObjectFromOid(oid);
-			return new GetObjectFromIdMessageResponse(baseIdentifier, message.getConnectionId(), nnoi);
+			// here we can't work only on layer3 (bytes) as we need to retrieve all dependencies
+			NonNativeObjectInfo nnoi = engine.getMetaObjectFromOid(oid, true,new InstanceBuilderContext(message.getDepth()));
+			IOdbList<OidAndBytes> oabs = engine.layer2ToLayer3(nnoi);
+			return new GetObjectFromIdMessageResponse(baseIdentifier, message.getSessionId(), oabs);
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while getting object of id " + oid;
 			DLogger.error(msg, e);
 
-			return new GetObjectFromIdMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new GetObjectFromIdMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("getObjectFromId");
 			}
-			connection.endCurrentAction();
+			session.endCurrentAction();
 		}
 	}
 
@@ -944,47 +1001,34 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-
-		IConnection connection = null;
-		OID oid = null;
+		ObjectOid oid = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(GET_OBJECT_HEADER_FROM_ID_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
 
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new GetObjectHeaderFromIdMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
-			}
+			session.setCurrentAction(ConnectionAction.ACTION_SELECT);
 
-			connection = connectionManager.getConnection(message.getConnectionId());
-			connection.setCurrentAction(ConnectionAction.ACTION_SELECT);
-
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 			oid = message.getOid();
-			ObjectInfoHeader oih = engine.getObjectInfoHeaderFromOid(oid, message.useCache());
+			ObjectInfoHeader oih = engine.getMetaHeaderFromOid(oid, true, message.useCache());
 			// the oih.duplicate method is called to create a new instance of
 			// the ObjectInfoHeader becasue of
 			// the java Serialization problem : Serialization will check the
 			// reference of the object and only send the reference if the object
 			// has already
 			// been changed. => creating a new will avoid this problem
-			return new GetObjectHeaderFromIdMessageResponse(baseIdentifier, message.getConnectionId(), oih.duplicate());
+			return new GetObjectHeaderFromIdMessageResponse(baseIdentifier, message.getSessionId(), oih.duplicate());
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while getting object of id " + oid;
 			DLogger.error(msg, e);
 
-			return new GetObjectHeaderFromIdMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new GetObjectHeaderFromIdMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("getObjectFromId");
 			}
-			connection.endCurrentAction();
+			session.endCurrentAction();
 		}
 	}
 
@@ -993,34 +1037,20 @@ public abstract class ClientServerConnection {
 		// Gets the base identifier
 		String baseIdentifier = message.getBaseIdentifier();
 
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-
-		IConnection connection = null;
 		Mutex mutex = null;
 		try {
 			mutex = MutexFactory.get(baseIdentifier).acquire(COUNT_MUTEX_NAME);
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier);
 
-			if (connectionManager == null) {
-				StringBuffer buffer = new StringBuffer();
-				buffer.append("ODBServer.ConnectionThread:Base ").append(baseIdentifier).append(" is not registered on this server!");
-				return new GetObjectFromIdMessageResponse(baseIdentifier, message.getConnectionId(), buffer.toString());
-			}
-
-			connection = connectionManager.getConnection(message.getConnectionId());
-
-			IStorageEngine engine = connection.getStorageEngine();
+			SessionEngine engine = session.getEngine();
 			CriteriaQuery query = message.getCriteriaQuery();
-			long nbObjects = engine.count(query);
-			return new CountMessageResponse(baseIdentifier, message.getConnectionId(), nbObjects);
+			BigInteger nbObjects = engine.count(query);
+			return new CountMessageResponse(baseIdentifier, message.getSessionId(), nbObjects);
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while counting objects for " + message.getCriteriaQuery();
 			DLogger.error(msg, e);
 
-			return new CountMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new CountMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("count");
@@ -1032,18 +1062,17 @@ public abstract class ClientServerConnection {
 
 		// Gets the base identifier
 		baseIdentifier = message.getBaseIdentifier();
-		// Gets the connection manager for this base identifier
-		ConnectionManager connectionManager = null;
-		IConnection connection = null;
+		// Gets the session manager for this base identifier
+		SessionManager sessionManager = null;
 		Mutex mutex = null;
 		try {
 
 			mutex = MutexFactory.get(baseIdentifier).acquire(COMMIT_CLOSE_CONNECT_MUTEX_NAME);
 
-			// Gets the connection manager for this base identifier
-			connectionManager = getConnectionManager(baseIdentifier, message.getUser(), message.getPassword(), false);
+			// Gets the session manager for this base identifier
+			sessionManager = getSessionManager(baseIdentifier, message.getUser(), message.getPassword(), false);
 
-			if (connectionManager == null) {
+			if (sessionManager == null) {
 				StringBuffer buffer = new StringBuffer();
 				buffer.append("Base ").append(baseIdentifier).append(" is not registered on this server!");
 				return new ConnectMessageResponse(baseIdentifier, "?", buffer.toString());
@@ -1052,44 +1081,125 @@ public abstract class ClientServerConnection {
 			String ip = message.getIp();
 			long dateTime = message.getDateTime();
 
-			connection = connectionManager.newConnection(ip, dateTime, connectionManager.getNbConnections());
-			connection.setCurrentAction(ConnectionAction.ACTION_CONNECT);
+			session = sessionManager.newSession(ip, dateTime, sessionManager.getNbSessions(),message.isTransactional(), server.getConfig());
+			session.setCurrentAction(ConnectionAction.ACTION_CONNECT);
+			session.setUserParameter(SessionParameters.USER_INFO, message.getUserInfo());
 
-			connectionId = connection.getId();
-			// Creates a new session for this connection
-			ISession session = new ServerSession(connection.getStorageEngine(), connectionId);
-			IStorageEngine engine = connection.getStorageEngine();
-			// adds the session to the storage engine (it will be associated to
-			// the current thread
-			// The add session sets the correct meta model
-			engine.addSession(session, true);
-			TransactionId transactionId = engine.getCurrentTransactionId();
+			SessionEngine engine = session.getEngine();
 
 			if (debug) {
-				DLogger.info(new StringBuffer("Connection from ").append(ip).append(" - cid=").append(connection.getId()).append(
-						" - session=").append(session.getId()).append(" - Base Id=").append(baseIdentifier).toString());
+				DLogger.info(new StringBuffer("Connection from ").append(ip).append(" - cid=").append(session.getId())
+						.append(" - session=").append(session.getId()).append(" - Base Id=").append(baseIdentifier).toString());
 			}
 
 			// Returns the meta-model to the client
-			MetaModel metaModel = engine.getSession(true).getMetaModel();
-			ConnectMessageResponse cmr = new ConnectMessageResponse(baseIdentifier, connection.getId(), metaModel, transactionId);
+			MetaModel metaModel = engine.getSession().getMetaModel();
+			IOdbList<OidAndBytes> oabs = new OdbArrayList<OidAndBytes>();
+			for(ClassInfo ci:metaModel.getAllClasses()){
+				oabs.add(engine.classInfoToBytes(ci));
+			}
+			ConnectMessageResponse cmr = new ConnectMessageResponse(baseIdentifier, session.getId(), oabs, session.getConfig().getOidGeneratorClass().getName());
 
 			return cmr;
 		} catch (Exception e) {
 			String se = OdbString.exceptionToString(e, false);
 			String msg = baseIdentifier + ":Error while connecting to  " + message.getBaseIdentifier();
 			DLogger.error(msg, e);
-			return new ConnectMessageResponse(baseIdentifier, message.getConnectionId(), msg + ":\n" + se);
+			return new ConnectMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
 		} finally {
 			if (mutex != null) {
 				mutex.release("connect");
 			}
-			if (connection != null) {
-				connection.endCurrentAction();
+			if (session != null) {
+				session.endCurrentAction();
 			}
 		}
 	}
+	
+	private Message manageSendFileCommand(SendFileMessage message) {
 
-	public abstract void clearMessageStreamerCache();
+		// Gets the base identifier
+		String baseIdentifier = message.getBaseIdentifier();
+		Mutex mutex = null;
+		try {
+
+			// just check if the file exist
+			File f = new File(server.getConfig().getInboxDirectory()+"/"+ message.getRemoteFileName());
+			boolean fileExist = f.exists();
+			long size = f.length();
+			
+			return new SendFileMessageResponse(baseIdentifier, message.getSessionId(), fileExist, size);
+		} catch (Exception e) {
+			String se = OdbString.exceptionToString(e, false);
+			String msg = baseIdentifier + ":Error while receiving file";
+			DLogger.error(msg, e);
+			return new SendFileMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
+		} finally {
+			if (mutex != null) {
+				mutex.release("File");
+			}
+			session.endCurrentAction();
+		}
+	}
+	
+	private Message manageGetFileCommand(GetFileMessage message) {
+
+		// Gets the base identifier
+		String baseIdentifier = message.getBaseIdentifier();
+		Mutex mutex = null;
+		try {
+
+			return new GetFileMessageResponse(baseIdentifier, message.getSessionId(), message.isGetFileInServerInbox(), message.getRemoteFileName(), message.isPutFileInClientInbox(), message.getLocalFileName());
+		} catch (Exception e) {
+			String se = OdbString.exceptionToString(e, false);
+			String msg = baseIdentifier + ":Error while getting file";
+			DLogger.error(msg, e);
+			return new GetFileMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
+		} finally {
+			if (mutex != null) {
+				mutex.release("File");
+			}
+			session.endCurrentAction();
+		}
+	}
+	
+	private Message manageRemoteProcessCommand(RemoteProcessMessage message) {
+
+		// Gets the base identifier
+		String baseIdentifier = message.getBaseIdentifier();
+		Mutex mutex = null;
+		try {
+			
+			boolean synchronous = message.isSynchronous();
+			// 	we create an odb that wraps the session odb. But in this case, eventhough the session is a server session, the 
+			// the execution happens as if it where a local odb. That is why we wrap the session to change the execution type
+			ODB odb = new ODBForTrigger(new SessionWrapper(session, ExecutionType.LOCAL_CLIENT));
+
+			if(synchronous){
+				RemoteProcess rp = message.getProcess();
+				rp.setOdb(odb);
+				rp.setServerConfig(server.getConfig());
+				rp.setClientIp(message.getClientIp());
+				RemoteProcessReturn r = rp.execute();
+			
+				return new RemoteProcessMessageResponse(baseIdentifier, message.getSessionId(), r);
+			}else{
+				ThreadToExecuteRemoteProcess t = new ThreadToExecuteRemoteProcess(odb, session, message, server.getConfig());
+				t.start();
+				// @todo : builds an id that will be used to retrieve async execution result later
+				return new RemoteProcessMessageResponse(baseIdentifier, message.getSessionId(), new AsyncProcessReturn());
+			}
+		} catch (Exception e) {
+			String se = OdbString.exceptionToString(e, false);
+			String msg = baseIdentifier + ":Error while executing remote process";
+			DLogger.error(msg, e);
+			return new RemoteProcessMessageResponse(baseIdentifier, message.getSessionId(), msg + ":\n" + se);
+		} finally {
+			if (mutex != null) {
+				mutex.release("File");
+			}
+			session.endCurrentAction();
+		}
+	}
 
 }

@@ -20,12 +20,6 @@
  */
 package org.neodatis.odb.tool;
 
-import java.io.IOException;
-import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-
-import org.neodatis.odb.OdbConfiguration;
-import org.neodatis.odb.impl.core.layers.layer3.buffer.MultiBufferedFileIO;
 
 
 /**
@@ -34,7 +28,7 @@ import org.neodatis.odb.impl.core.layers.layer3.buffer.MultiBufferedFileIO;
  *
  */
 public class ByteFileReader {
-
+/*
 	public static void main3(String[] args) throws IOException {
 
 		RandomAccessFile raf = new RandomAccessFile("1141067269187.transaction", "r");
@@ -89,5 +83,6 @@ public class ByteFileReader {
 		}
 		return array;
 	}
+	*/
 
 }

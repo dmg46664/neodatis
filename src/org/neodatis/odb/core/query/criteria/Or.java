@@ -32,9 +32,9 @@ public class Or extends ComposedExpression {
 
 	public boolean match(Object object) {
 		Iterator iterator = criteria.iterator();
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		while (iterator.hasNext()) {
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			// For OR Expression, if one is true, then the whole expression
 			// will be true
 			if (criterion.match(object)) {
@@ -48,11 +48,11 @@ public class Or extends ComposedExpression {
 		StringBuffer buffer = new StringBuffer();
 		Iterator iterator = criteria.iterator();
 		;
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		buffer.append("(");
 		boolean isFirst = true;
 		while (iterator.hasNext()) {
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			if (isFirst) {
 				buffer.append(criterion.toString());
 				isFirst = false;

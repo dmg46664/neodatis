@@ -20,31 +20,48 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.TransactionId;
-import org.neodatis.odb.core.layers.layer2.meta.MetaModel;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.core.layers.layer3.OidAndBytes;
+import org.neodatis.tool.wrappers.list.IOdbList;
 
 public class ConnectMessageResponse extends Message{
-	private MetaModel metaModel;
-	private TransactionId transactionId;
+	private IOdbList<OidAndBytes> oabsOfMetaModel;
+	
+	/** The server sends the oid generator class name to the client*/
+	private String oidGeneratorClassName;
+	
+	
 	public ConnectMessageResponse(String baseId,String connectionId, String error){
-		super(Command.CONNECT,baseId,connectionId);
+		super(MessageType.CONNECT_RESPONSE,baseId,connectionId);
 		setError(error);
 	}
 
-	public ConnectMessageResponse(String baseId,String connectionId,MetaModel metaModel, TransactionId transactionId){
-		super(Command.CONNECT,baseId,connectionId);
-		this.metaModel = metaModel;
-		this.transactionId = transactionId;
+	public ConnectMessageResponse(String baseId,String sessionId, IOdbList<OidAndBytes> oabs, String oidGeneratorClassName){
+		super(MessageType.CONNECT_RESPONSE,baseId,sessionId);
+		this.oabsOfMetaModel = oabs;
+		this.oidGeneratorClassName = oidGeneratorClassName;
 	}
 
-	public MetaModel getMetaModel() {
-		return metaModel;
+	/**
+	 * 
+	 */
+	public ConnectMessageResponse() {
+		super();
 	}
 
-	public TransactionId getTransactionId() {
-		return transactionId;
+	public IOdbList<OidAndBytes> getOabsOfMetaModel() {
+		return oabsOfMetaModel;
 	}
-	
+
+	public void setOabsOfMetaModel(IOdbList<OidAndBytes> oabsOfMetaModel) {
+		this.oabsOfMetaModel = oabsOfMetaModel;
+	}
+
+	public String getOidGeneratorClassName() {
+		return oidGeneratorClassName;
+	}
+
+	public void setOidGeneratorClassName(String oidGeneratorClassName) {
+		this.oidGeneratorClassName = oidGeneratorClassName;
+	}
+
 }

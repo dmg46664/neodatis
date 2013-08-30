@@ -36,10 +36,14 @@ import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.border.LineBorder;
 
+import org.neodatis.odb.NeoDatis;
+import org.neodatis.odb.ODB;
 import org.neodatis.odb.ODBAuthenticationRuntimeException;
-import org.neodatis.odb.OdbConfiguration;
-import org.neodatis.odb.core.layers.layer3.IBaseIdentification;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.layers.layer4.BaseIdentification;
+import org.neodatis.odb.core.layers.layer4.IOSocketParameter;
+import org.neodatis.odb.core.layers.layer4.engine.Dummy;
+import org.neodatis.odb.core.session.Session;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.classbrowser.ClassHierarchyPanel;
 import org.neodatis.odb.gui.tool.GuiUtil;
 import org.neodatis.odb.gui.xml.XmlExportPanel;
@@ -47,8 +51,8 @@ import org.neodatis.tool.ILogger;
 
 public class ODBExplorerPanel extends JPanel implements IBrowserContainer, ActionListener {
 
-	private IBaseIdentification baseIdentification;
-	private IStorageEngine engine;
+	private BaseIdentification baseIdentification;
+	private Session session;
 
 	private ClassHierarchyPanel classHierarchyPanel;
 
@@ -67,7 +71,7 @@ public class ODBExplorerPanel extends JPanel implements IBrowserContainer, Actio
 
 	private JButton rollbackButton;
 
-	public ODBExplorerPanel(JInternalFrame graphicContainer, IBaseIdentification baseIdentification, String title, ILogger logger) {
+	public ODBExplorerPanel(JInternalFrame graphicContainer, BaseIdentification baseIdentification, String title, ILogger logger) {
 		this.baseIdentification = baseIdentification;
 		this.graphicContainer = graphicContainer;
 		this.logger = logger;
@@ -76,7 +80,7 @@ public class ODBExplorerPanel extends JPanel implements IBrowserContainer, Actio
 
 	private void init(String title) {
 		updateEngine();
-		classHierarchyPanel = new ClassHierarchyPanel(engine, this, title, logger);
+		classHierarchyPanel = new ClassHierarchyPanel(session.getEngine(), this, title, logger);
 		browsingPanel = new JTabbedPane();
 		browsingPanel.setPreferredSize(new Dimension(600, 400));
 		browsingPanel.setAutoscrolls(true);
@@ -129,13 +133,15 @@ public class ODBExplorerPanel extends JPanel implements IBrowserContainer, Actio
 	}
 
 	public void updateEngine() {
-		if (engine != null) {
-			engine.close();
+		if (session != null) {
+			session.close();
 		}
 
 		if (baseIdentification.isLocal()) {
 			try {
-				engine = OdbConfiguration.getCoreProvider().getClientStorageEngine(baseIdentification);
+				ODB odb = NeoDatis.open(baseIdentification.getFullIdentification());
+				SessionEngine engine = Dummy.getEngine(odb);
+				session = engine.getSession();
 				logger.info("connected!");
 			} catch (ODBAuthenticationRuntimeException e) {
 				JOptionPane.showMessageDialog(this, "Invalid user/password");
@@ -143,15 +149,18 @@ public class ODBExplorerPanel extends JPanel implements IBrowserContainer, Actio
 				logger.error("Error while opening base", e);
 			}
 		} else {
-
 			try {
-				engine = OdbConfiguration.getCoreProvider().getClientStorageEngine(baseIdentification);
+				IOSocketParameter p = (IOSocketParameter) baseIdentification;
+				ODB odb = NeoDatis.openClient(p.getDestinationHost(), p.getPort(), p.getBaseId());
+				SessionEngine engine = Dummy.getEngine(odb);
+				session = engine.getSession();
+				//JOptionPane.showMessageDialog(this, "Client Server with NeoDatis not yet implemented");
 			} catch (ODBAuthenticationRuntimeException e) {
 				JOptionPane.showMessageDialog(this, "Invalid user/password");
 			}
 		}
 		if (classHierarchyPanel != null) {
-			classHierarchyPanel.updateEngine(engine);
+			classHierarchyPanel.updateEngine(session.getEngine());
 		}
 
 	}
@@ -217,7 +226,7 @@ public class ODBExplorerPanel extends JPanel implements IBrowserContainer, Actio
 	}
 
 	private void close() {
-		if (engine.getSession(true).transactionIsPending()) {
+		if (session.transactionIsPending()) {
 			logger.error(Messages.getString("Some work has not been commited,\nplease commit or rollback current session!"));
 		} else {
 			if (graphicContainer != null) {
@@ -226,20 +235,20 @@ public class ODBExplorerPanel extends JPanel implements IBrowserContainer, Actio
 				if (r == JOptionPane.YES_OPTION) {
 					graphicContainer.dispose();
 					logger.info("Closing engine");
-					engine.close();
+					session.close();
 				}
 			}
 		}
 	}
 
 	private void commit() throws Exception {
-		engine.commit();
+		session.commit();
 		logger.info("Commit executed");
 
 	}
 
 	private void rollback() throws IOException {
-		engine.rollback();
+		session.rollback();
 		logger.info("Rollback executed");
 	}
 

@@ -20,25 +20,31 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class RollbackMessageResponse extends Message {
 	private boolean ok;
-	
-	public RollbackMessageResponse(String baseId, String connectionId, String error){
-		super(Command.ROLLBACK, baseId,connectionId);
+	public RollbackMessageResponse(){
+		super();
+	}
+	public RollbackMessageResponse(String baseId, String sessionId, String error){
+		super(MessageType.ROLLBACK_RESPONSE, baseId,sessionId);
 		setError(error);
 	}
-	public RollbackMessageResponse(String baseId, String connectionId, boolean ok){
-		super(Command.ROLLBACK, baseId,connectionId);
+	public RollbackMessageResponse(String baseId, String sessionId, boolean ok){
+		super(MessageType.ROLLBACK_RESPONSE, baseId,sessionId);
 		this.ok = ok;
 	}
 
 
 	public boolean isOk() {
 		return ok;
+	}
+	/**
+	 * @param ok2
+	 */
+	public void setOk(boolean ok) {
+		this.ok = ok;
 	}
 
 

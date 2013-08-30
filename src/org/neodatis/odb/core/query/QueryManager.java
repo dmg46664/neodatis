@@ -20,45 +20,60 @@
  */
 package org.neodatis.odb.core.query;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.odb.NeoDatisRuntimeException;
+import org.neodatis.odb.Query;
 import org.neodatis.odb.core.NeoDatisError;
-import org.neodatis.odb.core.layers.layer2.instance.IInstanceBuilder;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
-import org.neodatis.odb.core.query.execution.IQueryExecutor;
-import org.neodatis.odb.core.query.execution.MultiClassGenericQueryExecutor;
+import org.neodatis.odb.core.query.criteria.CriteriaQuery;
+import org.neodatis.odb.core.query.criteria.CriteriaQueryExecutor;
+import org.neodatis.odb.core.query.criteria.CriteriaQueryImpl;
+import org.neodatis.odb.core.query.criteria.CriteriaQueryManager;
 import org.neodatis.odb.core.query.nq.NativeQuery;
-import org.neodatis.odb.core.query.nq.SimpleNativeQuery;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQueryExecutor;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQueryManager;
-import org.neodatis.odb.impl.core.query.nq.NativeQueryExecutor;
-import org.neodatis.odb.impl.core.query.nq.NativeQueryManager;
-import org.neodatis.odb.impl.core.query.values.ValuesCriteriaQuery;
-import org.neodatis.odb.impl.core.query.values.ValuesCriteriaQueryExecutor;
+import org.neodatis.odb.core.query.nq.NativeQueryExecutor;
+import org.neodatis.odb.core.query.nq.NativeQueryManager;
+import org.neodatis.odb.core.query.values.ValuesCriteriaQuery;
+import org.neodatis.odb.core.query.values.ValuesCriteriaQueryExecutor;
+import org.neodatis.odb.core.session.SessionEngine;
 
 public class QueryManager {
 
-	public static boolean needsInstanciation(IQuery query) {
+	public static boolean match(InternalQuery query, Object object) {
+		if (NativeQuery.class.isAssignableFrom(query.getClass())) {
+			return NativeQueryManager.match((NativeQuery) query, object);
+		}
+		if (isCriteriaQuery(query)) {
+			return CriteriaQueryManager.match((CriteriaQueryImpl) query, object);
+		}
+		throw new NeoDatisRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
+	}
+
+	public static String getFullClassName(Query query) {
+		if (NativeQuery.class.isAssignableFrom(query.getClass())) {
+			return NativeQueryManager.getClass((NativeQuery) query);
+		}
+
+		if (isCriteriaQuery(query) || ValuesCriteriaQuery.class == query.getClass()) {
+			return CriteriaQueryManager.getFullClassName((CriteriaQuery) query);
+		}
+		throw new NeoDatisRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
+	}
+
+	public static boolean needsInstanciation(Query query) {
 		if (NativeQuery.class.isAssignableFrom(query.getClass())) {
 			return true;
 		}
-		if (SimpleNativeQuery.class.isAssignableFrom(query.getClass())) {
-			return true;
-		}
-
-		if (CriteriaQuery.class == query.getClass() || ValuesCriteriaQuery.class == query.getClass()) {
+		if (isCriteriaQuery(query) || ValuesCriteriaQuery.class == query.getClass()) {
 			return false;
 		}
-		throw new ODBRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
+		throw new NeoDatisRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
 
 	}
 
-	public static boolean isCriteriaQuery(IQuery query) {
-		return CriteriaQuery.class.isAssignableFrom(query.getClass());
+	public static boolean isCriteriaQuery(Query query) {
+		return query instanceof CriteriaQueryImpl || query instanceof CriteriaQuery;
 	}
 
-	public static int[] getOrderByAttributeIds(ClassInfo classInfo, IQuery query) {
+	public static int[] getOrderByAttributeIds(ClassInfo classInfo, InternalQuery query) {
 		String[] fieldNames = query.getOrderByFieldNames();
 		int[] fieldIds = new int[fieldNames.length];
 		for (int i = 0; i < fieldNames.length; i++) {
@@ -69,31 +84,29 @@ public class QueryManager {
 
 	/**
 	 * Returns a query executor according to the query type
-	 * 
 	 * @param query
 	 * @param engine
 	 * @param instanceBuilder
 	 * @return
 	 */
-	public static IQueryExecutor getQueryExecutor(IQuery query, IStorageEngine engine, IInstanceBuilder instanceBuilder) {
-		if (query.isPolymorphic()) {
-			return getMultiClassQueryExecutor(query, engine, instanceBuilder);
+	public static IQueryExecutor getQueryExecutor(InternalQuery query, SessionEngine engine) {
+		if(query.isPolymorphic()){
+			return getMultiClassQueryExecutor(query,engine);
 		}
-
-		return getSingleClassQueryExecutor(query, engine, instanceBuilder);
+		
+		return getSingleClassQueryExecutor(query, engine);
 	}
-
-	/**
-	 * Return a single class query executor (polymorphic = false)
+	
+	/** Return a single class query executor (polymorphic = false)
 	 * 
 	 * @param query
 	 * @param engine
 	 * @param instanceBuilder
 	 * @return
 	 */
-	protected static IQueryExecutor getSingleClassQueryExecutor(IQuery query, IStorageEngine engine, IInstanceBuilder instanceBuilder) {
+	protected static IQueryExecutor getSingleClassQueryExecutor(InternalQuery query, SessionEngine engine) {
 
-		if (CriteriaQuery.class == query.getClass()) {
+		if (CriteriaQueryImpl.class == query.getClass()  || CriteriaQuery.class == query.getClass()) {
 			return new CriteriaQueryExecutor(query, engine);
 		}
 		if (ValuesCriteriaQuery.class == query.getClass()) {
@@ -101,27 +114,21 @@ public class QueryManager {
 		}
 
 		if (NativeQuery.class.isAssignableFrom(query.getClass())) {
-			return new NativeQueryExecutor(query, engine, instanceBuilder);
+			return new NativeQueryExecutor(query, engine);
 		}
 
-		if (SimpleNativeQuery.class.isAssignableFrom(query.getClass())) {
-			return new NativeQueryExecutor(query, engine, instanceBuilder);
-		}
-
-		throw new ODBRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
+		throw new NeoDatisRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
 	}
 
 	/**
 	 * Returns a multi class query executor (polymorphic = true)
-	 * 
 	 * @param query
 	 * @param engine
-	 * @param instanceBuilder
 	 * @return
 	 */
-	protected static IQueryExecutor getMultiClassQueryExecutor(IQuery query, IStorageEngine engine, IInstanceBuilder instanceBuilder) {
+	protected static IQueryExecutor getMultiClassQueryExecutor(InternalQuery query, SessionEngine engine) {
 
-		if (CriteriaQuery.class == query.getClass()) {
+		if (CriteriaQueryImpl.class == query.getClass()  || CriteriaQuery.class == query.getClass()) {
 			return new MultiClassGenericQueryExecutor(new CriteriaQueryExecutor(query, engine));
 		}
 		if (ValuesCriteriaQuery.class == query.getClass()) {
@@ -129,32 +136,10 @@ public class QueryManager {
 		}
 
 		if (NativeQuery.class.isAssignableFrom(query.getClass())) {
-			return new MultiClassGenericQueryExecutor(new NativeQueryExecutor(query, engine, instanceBuilder));
+			return new MultiClassGenericQueryExecutor(new NativeQueryExecutor(query, engine));
 		}
 
-		if (SimpleNativeQuery.class.isAssignableFrom(query.getClass())) {
-			return new MultiClassGenericQueryExecutor(new NativeQueryExecutor(query, engine, instanceBuilder));
-		}
-
-		throw new ODBRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
-	}
-
-	/**
-	 * @param query
-	 * @return
-	 */
-	public static String getFullClassName(IQuery query) {
-		if (NativeQuery.class.isAssignableFrom(query.getClass())) {
-			return new NativeQueryManager().getFullClassName((NativeQuery) query);
-		}
-		if (SimpleNativeQuery.class.isAssignableFrom(query.getClass())) {
-			return new NativeQueryManager().getFullClassName((SimpleNativeQuery) query);
-		}
-
-		if (CriteriaQuery.class == query.getClass() || ValuesCriteriaQuery.class == query.getClass()) {
-			return new CriteriaQueryManager().getFullClassName((CriteriaQuery) query);
-		}
-		throw new ODBRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
+		throw new NeoDatisRuntimeException(NeoDatisError.QUERY_TYPE_NOT_IMPLEMENTED.addParameter(query.getClass().getName()));
 	}
 
 }

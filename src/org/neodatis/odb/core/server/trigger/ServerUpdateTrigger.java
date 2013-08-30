@@ -21,19 +21,35 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.trigger;
 
-import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.ObjectRepresentation;
+import org.neodatis.odb.core.session.ExecutionType;
 import org.neodatis.odb.core.trigger.UpdateTrigger;
 
 public abstract class ServerUpdateTrigger extends UpdateTrigger{
 	
 	
-    public void afterUpdate(ObjectRepresentation oldObjectRepresentation, Object newObject, OID oid) {
-    	afterUpdate(oldObjectRepresentation, (ObjectRepresentation) newObject, oid);
+    public void afterUpdate(ObjectRepresentation oldObjectRepresentation, Object newObject, ObjectOid oid) {
+    	if(newObject instanceof ObjectRepresentation){
+    		afterUpdate(oldObjectRepresentation, (ObjectRepresentation) newObject, oid);
+    	}
+		// there is a specific case (when using remote process invocation where server triggers may be called on user objects. This situation must be ignored. 
+		// Check ExecutionType for more details
+
 	}
-	public boolean beforeUpdate(ObjectRepresentation oldObjectRepresentation, Object newObject, OID oid) {
-		return beforeUpdate(oldObjectRepresentation, (ObjectRepresentation) newObject, oid);
+	public boolean beforeUpdate(ObjectRepresentation oldObjectRepresentation, Object newObject, ObjectOid oid) {
+    	if(newObject instanceof ObjectRepresentation){
+    		return beforeUpdate(oldObjectRepresentation, (ObjectRepresentation) newObject, oid);
+    	}
+    	return false;
+		
 	}
-	public abstract boolean beforeUpdate(final ObjectRepresentation oldObjectRepresentation,final ObjectRepresentation newObjectRepresentation,final OID oid);
-    public abstract void afterUpdate(final ObjectRepresentation oldObjectRepresentation,final ObjectRepresentation newObjectRepresentation,final OID oid);
+	public abstract boolean beforeUpdate(final ObjectRepresentation oldObjectRepresentation,final ObjectRepresentation newObjectRepresentation,final ObjectOid oid);
+    public abstract void afterUpdate(final ObjectRepresentation oldObjectRepresentation,final ObjectRepresentation newObjectRepresentation,final ObjectOid oid);
+    
+    @Override
+    public int getExecutionType() {
+    	return ExecutionType.SERVER;
+    }
+
 }

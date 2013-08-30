@@ -29,7 +29,6 @@ package org.neodatis.odb.core.layers.layer2.meta;
 public class NativeAttributeHeader {
 	private int blockSize;
 	private byte blockType;
-	private boolean isNative;
 	private int odbTypeId;
 	private boolean isNull;
 	
@@ -37,11 +36,10 @@ public class NativeAttributeHeader {
 		super();
 	}
 
-	public NativeAttributeHeader(int blockSize, byte blockType, boolean isNative, int odbTypeId, boolean isNull) {
+	public NativeAttributeHeader(int blockSize, byte blockType, int odbTypeId, boolean isNull) {
 		super();
 		this.blockSize = blockSize;
 		this.blockType = blockType;
-		this.isNative = isNative;
 		this.odbTypeId = odbTypeId;
 		this.isNull = isNull;
 	}
@@ -60,14 +58,6 @@ public class NativeAttributeHeader {
 
 	public void setBlockType(byte blockType) {
 		this.blockType = blockType;
-	}
-
-	public boolean isNative() {
-		return isNative;
-	}
-
-	public void setNative(boolean isNative) {
-		this.isNative = isNative;
 	}
 
 	public boolean isNull() {

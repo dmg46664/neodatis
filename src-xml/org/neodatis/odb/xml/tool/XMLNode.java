@@ -32,14 +32,16 @@ public class XMLNode {
 	private XMLNode currentChild;
 	private int nodeLevel;
 	boolean headerHasBeenWritten;
-
-	XMLNode(String name, boolean isRoot) {
+	private XMLGenerator xmlGenerator;
+	
+	XMLNode(XMLGenerator xmlGenerator, String name, boolean isRoot) {
 		this.name = name;
 		attributes = new ArrayList<XMLAttribute>();
 		nodes = new ArrayList<XMLNode>();
 		this.isRoot = isRoot;
 		this.isDone = false;
 		this.nodeLevel = 0;
+		this.xmlGenerator = xmlGenerator;
 	}
 
 	public XMLNode addAttribute(String name, String value) {
@@ -62,14 +64,14 @@ public class XMLNode {
 				currentChild = null;
 			}
 		}
-		currentChild = new XMLNode(name, false);
+		currentChild = new XMLNode(xmlGenerator, name, false);
 		currentChild.nodeLevel = this.nodeLevel + 1;
 		nodes.add(currentChild);
 		return currentChild;
 	}
 
 	public void endHeader() {
-		XMLGenerator.startOfNode(name, this);
+		xmlGenerator.startOfNode(name, this);
 		headerHasBeenWritten = true;
 	}
 
@@ -78,9 +80,9 @@ public class XMLNode {
 		/*
 		 * if(!headerHasBeenWritten){ endHeader(); }
 		 */
-		boolean canRemoveNode = XMLGenerator.endOfNode(name, this);
+		boolean canRemoveNode = xmlGenerator.endOfNode(name, this);
 		if (isRoot) {
-			XMLGenerator.endOfDocument(name);
+			xmlGenerator.endOfDocument(name);
 		}
 		return canRemoveNode;
 	}

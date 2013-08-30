@@ -22,19 +22,16 @@ package org.neodatis.odb.core.server.message;
 
 import java.util.List;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
-
 
 public class GetSessionsMessageResponse extends Message{
 
 	List<String> sessions;
 	public GetSessionsMessageResponse(List<String> sessions) {
-		super(Command.GET_SESSIONS,null,null);
+		super(MessageType.GET_SESSIONS,null,null);
 		this.sessions = sessions;
 	}
 	public GetSessionsMessageResponse(String error) {
-		super(Command.GET_SESSIONS,null,null);
+		super(MessageType.GET_SESSIONS,null,null);
 	}
 	public List<String> getSessions() {
 		return sessions;

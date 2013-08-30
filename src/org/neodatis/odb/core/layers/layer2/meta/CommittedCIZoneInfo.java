@@ -45,7 +45,5 @@ public class CommittedCIZoneInfo extends CIZoneInfo {
 	public String toString() {
 		return "(first=" + first + ",last=" + last + ",nb=" + nbObjects + "-" +nbDeletedObjects+ ")";
 	}
-	public boolean hasObjects() {
-		return nbObjects-nbDeletedObjects != 0;
-	}
+	
 }

@@ -20,8 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 import org.neodatis.tool.wrappers.OdbTime;
 
 public class ConnectMessage extends Message{
@@ -30,12 +28,22 @@ public class ConnectMessage extends Message{
 	private long dateTime;
 	private String user;
 	private String password;
-	public ConnectMessage(String baseId, String ip,String user,String password) {
-		super(Command.CONNECT,baseId,null);
+	private boolean transactional;
+	/** an optional user info*/
+	private String userInfo;
+	public ConnectMessage(String baseId, String sessionId, String ip,String user,String password, boolean transactional) {
+		super(MessageType.CONNECT,baseId,sessionId);
 		this.ip = ip;
 		this.dateTime = OdbTime.getCurrentTimeInMs();
 		this.user = user;
 		this.password = password;
+		this.transactional = transactional;
+	}
+	/**
+	 * 
+	 */
+	public ConnectMessage() {
+		super();
 	}
 	public long getDateTime() {
 		return dateTime;
@@ -52,6 +60,30 @@ public class ConnectMessage extends Message{
 	}
 	public String getUser() {
 		return user;
+	}
+	public void setIp(String ip) {
+		this.ip = ip;
+	}
+	public void setDateTime(long dateTime) {
+		this.dateTime = dateTime;
+	}
+	public void setUser(String user) {
+		this.user = user;
+	}
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	public boolean isTransactional() {
+		return transactional;
+	}
+	public void setTransactional(boolean transactional) {
+		this.transactional = transactional;
+	}
+	public String getUserInfo() {
+		return userInfo;
+	}
+	public void setUserInfo(String userInfo) {
+		this.userInfo = userInfo;
 	}
 	
 }

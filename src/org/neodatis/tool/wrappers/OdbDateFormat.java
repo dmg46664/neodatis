@@ -5,7 +5,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.core.NeoDatisError;
 
 
@@ -31,7 +31,7 @@ public class OdbDateFormat {
 		try {
 			return sdf.parse(text);
 		} catch (ParseException e) {
-			throw new ODBRuntimeException(NeoDatisError.FORMT_INVALID_DATE_FORMAT.addParameter(text).addParameter(pattern));
+			throw new NeoDatisRuntimeException(NeoDatisError.FORMT_INVALID_DATE_FORMAT.addParameter(text).addParameter(pattern));
 		}
 	}
 }

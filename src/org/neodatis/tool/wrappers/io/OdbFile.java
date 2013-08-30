@@ -54,4 +54,18 @@ public class OdbFile {
 	public String toString() {
 		return file.getAbsolutePath();
 	}
+
+	/**
+	 * @return
+	 */
+	public boolean isDirectory() {
+		return file.isDirectory();
+	}
+
+	/**
+	 * @return
+	 */
+	public String[] list() {
+		return file.list();
+	}
 }

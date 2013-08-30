@@ -70,7 +70,7 @@ public interface ClassRepresentation extends Serializable {
 	 */
 	public void addParameterHelper(ParameterHelper parameterHelper);
 
-	/** Remove the parameter helper for this class, if exists */
+	/** Remove the identification helper for this class, if exists */
 	public void removeParameterHelper();
 
 	/** Adds an helper to tell ODB what class to call to create an instance */
@@ -113,7 +113,4 @@ public interface ClassRepresentation extends Serializable {
 	 * 
 	 */
 	public List<String> getIndexDescriptions();
-	
-	public void persistAttribute(String attributeName);
-	public void doNotPersistAttribute(String attributeName);
 }

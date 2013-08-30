@@ -36,7 +36,7 @@ public class NullNativeObjectInfo extends NativeObjectInfo {
 	
 	public static NullNativeObjectInfo instance = new NullNativeObjectInfo();
 	
-    private NullNativeObjectInfo() {
+    public NullNativeObjectInfo() {
         super(null,ODBType.NULL);
     }
 	public NullNativeObjectInfo(int odbTypeId) {

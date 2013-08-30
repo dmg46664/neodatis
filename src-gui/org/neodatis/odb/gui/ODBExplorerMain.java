@@ -26,7 +26,7 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.UIManager.LookAndFeelInfo;
 
-import org.neodatis.odb.OdbConfiguration;
+import org.neodatis.odb.NeoDatisGlobalConfig;
 import org.neodatis.odb.gui.tool.GuiUtil;
 
 public class ODBExplorerMain {
@@ -36,9 +36,9 @@ public class ODBExplorerMain {
 	 * invoked from the event-dispatching thread.
 	 */
 	private static void createAndShowGUI() {
-		OdbConfiguration.setCheckModelCompatibility(false);
-		OdbConfiguration.setAutomaticallyIncreaseCacheSize(true);
-
+		
+		NeoDatisGlobalConfig.get().setCheckMetaModelCompatibility(false);
+		
 		boolean lfOk = false;
 		try {
 			for (LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
@@ -71,6 +71,7 @@ public class ODBExplorerMain {
 				// handle exception
 			}
 		}
+
 		GuiUtil.setDefaultFont();
 
 		// Create and set up the window.

@@ -36,7 +36,7 @@ public interface ObjectRepresentation {
 	 * 
 	 * @return
 	 */
-	OID getOid();
+	ObjectOid getObjectOid();
 
 	/**
 	 * Retrieves the full object class name
@@ -60,4 +60,17 @@ public interface ObjectRepresentation {
 	 * @param value
 	 */
 	void setValueOf(String attributeName, Object value);
+
+	/**Check if the object representation has a specific id
+	 * 
+	 */
+	boolean hasField(String fieldName);
+
+	boolean isNull();
+	
+	/** Returns true if the underlying meta object is only the object reference instead of the real meta object
+	 * 
+	 * @return
+	 */
+	boolean isObjectReference();
 }

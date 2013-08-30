@@ -25,8 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.neodatis.odb.ODBRuntimeException;
-import org.neodatis.odb.OID;
+import org.neodatis.odb.ClassOid;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.core.NeoDatisError;
 import org.neodatis.tool.wrappers.OdbTime;
 import org.neodatis.tool.wrappers.list.IOdbList;
@@ -75,40 +75,10 @@ public class ClassInfo implements Serializable {
 	 */
 	private Map<Integer, ClassAttributeInfo> attributesById;
 
-	/**
-	 * To keep session original numbers, original number of committed
-	 * objects,first and last object position
-	 */
-	private CommittedCIZoneInfo original;
-
-	/**
-	 * To keep session numbers, number of committed objects,first and last
-	 * object position
-	 */
-	private CommittedCIZoneInfo committed;
-
-	/**
-	 * To keep session uncommitted numbers, number of uncommitted objects,first
-	 * and last object position
-	 */
-	private CIZoneInfo uncommitted;
-
-	/** Physical location of this class in the file (in byte) */
-	private long position;
-
-	private OID id;
-
-	/** Where is the previous class. -1, if it does not exist */
-	private OID previousClassOID;
-
-	/** Where is the next class, -1, if it does not exist */
-	private OID nextClassOID;
+	private ClassOid coid;
 
 	/** Where starts the block of attributes definition of this class ? */
 	private long attributesDefinitionPosition;
-
-	/** The size (in bytes) of the class block */
-	private int blockSize;
 
 	/** Infos about the last object of this class */
 	private ObjectInfoHeader lastObjectInfoHeader;
@@ -119,21 +89,12 @@ public class ClassInfo implements Serializable {
 	 */
 	private int maxAttributeId;
 
+	private ClassOid superClassOid;
 	private IOdbList<ClassInfoIndex> indexes;
 
-	private transient IOdbList<Object> history;
-
 	public ClassInfo() {
-		this.original = new CommittedCIZoneInfo(this, null, null, 0);
-		this.committed = new CommittedCIZoneInfo(this, null, null, 0);
-		this.uncommitted = new CIZoneInfo(this, null, null, 0);
-		this.previousClassOID = null;
-		this.nextClassOID = null;
-		this.blockSize = -1;
-		this.position = -1;
 		this.maxAttributeId = -1;
 		this.classCategory = CATEGORY_USER_CLASS;
-		this.history = new OdbArrayList<Object>();
 	}
 
 	public ClassInfo(String className) {
@@ -153,11 +114,13 @@ public class ClassInfo implements Serializable {
 		this.attributesById = new OdbHashMap<Integer, ClassAttributeInfo>();
 		if (attributes != null) {
 			fillAttributesMap();
+		}else{
+			this.attributes = new OdbArrayList<ClassAttributeInfo>();
 		}
 		this.maxAttributeId = (attributes == null ? 1 : attributes.size() + 1);
 	}
 
-	private void fillAttributesMap() {
+	public void fillAttributesMap() {
 		ClassAttributeInfo cai = null;
 		if (attributesByName == null) {
 			attributesByName = new OdbHashMap<String, ClassAttributeInfo>();
@@ -182,8 +145,8 @@ public class ClassInfo implements Serializable {
 
 	public String toString() {
 		StringBuffer buffer = new StringBuffer();
-		buffer.append(" [ ").append(fullClassName).append(" - id=").append(id);
-		buffer.append(" - previousClass=").append(previousClassOID).append(" - nextClass=").append(nextClassOID).append(" - attributes=(");
+		buffer.append(" [ ").append(fullClassName).append(" - id=").append(coid);
+		buffer.append(" - attributes=(");
 		// buffer.append(" | position=").append(position);
 		// buffer.append(" | class=").append(className).append(" | attributes=[");
 
@@ -224,48 +187,12 @@ public class ClassInfo implements Serializable {
 		fillAttributesMap();
 	}
 
-	public CommittedCIZoneInfo getCommitedZoneInfo() {
-		return committed;
-	}
-
 	public long getAttributesDefinitionPosition() {
 		return attributesDefinitionPosition;
 	}
 
 	public void setAttributesDefinitionPosition(long definitionPosition) {
 		this.attributesDefinitionPosition = definitionPosition;
-	}
-
-	public OID getNextClassOID() {
-		return nextClassOID;
-	}
-
-	public void setNextClassOID(OID nextClassOID) {
-		this.nextClassOID = nextClassOID;
-	}
-
-	public OID getPreviousClassOID() {
-		return previousClassOID;
-	}
-
-	public void setPreviousClassOID(OID previousClassOID) {
-		this.previousClassOID = previousClassOID;
-	}
-
-	public long getPosition() {
-		return position;
-	}
-
-	public void setPosition(long position) {
-		this.position = position;
-	}
-
-	public int getBlockSize() {
-		return blockSize;
-	}
-
-	public void setBlockSize(int blockSize) {
-		this.blockSize = blockSize;
 	}
 
 	/**
@@ -291,18 +218,18 @@ public class ClassInfo implements Serializable {
 			if (!cai.isNative() || cai.getAttributeType().isEnum()) {
 				result.add(cai);
 			} else if (cai.getAttributeType().isArray() && !cai.getAttributeType().getSubType().isNative()) {
-				result.add(new ClassAttributeInfo(-1, "subtype", cai.getAttributeType().getSubType().getName(), null));
+				result.add(new ClassAttributeInfo(-1, "subtype", cai.getAttributeType().getSubType().getName(), cai.getAttributeClassOid(), cai.getOwnerClassInfoOid()));
 			}
 		}
 		return result;
 	}
 
-	public OID getId() {
-		return id;
+	public ClassOid getOid() {
+		return coid;
 	}
 
-	public void setId(OID id) {
-		this.id = id;
+	public void setOid(ClassOid id) {
+		this.coid = id;
 	}
 
 	public ClassAttributeInfo getAttributeInfoFromId(int id) {
@@ -310,6 +237,10 @@ public class ClassInfo implements Serializable {
 	}
 
 	public int getAttributeId(String name) {
+		if(attributesByName==null){
+			System.out.println("attributesByName is null");
+		}
+		
 		ClassAttributeInfo cai = attributesByName.get(name);
 		if (cai == null) {
 			return -1;
@@ -333,64 +264,7 @@ public class ClassInfo implements Serializable {
 		this.maxAttributeId = maxAttributeId;
 	}
 
-	public ClassInfoCompareResult extractDifferences(ClassInfo newCI, boolean update) {
-		String attributeName = null;
-		ClassAttributeInfo cai1 = null;
-		ClassAttributeInfo cai2 = null;
-		ClassInfoCompareResult result = new ClassInfoCompareResult(getFullClassName());
-		boolean isCompatible = true;
-		IOdbList<ClassAttributeInfo> attributesToRemove = new OdbArrayList<ClassAttributeInfo>(10);
-		IOdbList<ClassAttributeInfo> attributesToAdd = new OdbArrayList<ClassAttributeInfo>(10);
-		int nbAttributes = attributes.size();
-		for (int id = 0; id < nbAttributes; id++) {
-			// !!!WARNING : ID start with 1 and not 0
-			cai1 = attributes.get(id);
-			if (cai1 == null) {
-				continue;
-			}
-			attributeName = cai1.getName();
-			cai2 = newCI.getAttributeInfoFromId(cai1.getId());
-			if (cai2 == null) {
-				result.addCompatibleChange("Field '" + attributeName + "' (type="+cai1.getFullClassname() +") has been removed");
-				if (update) {
-					// Simply remove the attribute from meta-model
-					attributesToRemove.add(cai1);
-				}
-			} else {
-				if (!ODBType.typesAreCompatible(cai1.getAttributeType(), cai2.getAttributeType())) {
-					result.addIncompatibleChange("Type of Field '" + attributeName + "' has changed : old='" + cai1.getFullClassname()
-							+ "' - new='" + cai2.getFullClassname() + "'");
-					isCompatible = false;
-				}
-			}
-		}
-		int nbNewAttributes = newCI.attributes.size();
-		for (int id = 0; id < nbNewAttributes; id++) {
-			// !!!WARNING : ID start with 1 and not 0
-			cai2 = newCI.attributes.get(id);
-			if (cai2 == null) {
-				continue;
-			}
-			attributeName = cai2.getName();
-			cai1 = getAttributeInfoFromId(cai2.getId());
-			if (cai1 == null) {
-				result.addCompatibleChange("Field '" + attributeName + "' (type="+ cai2.getFullClassname()+") has been added");
-				if (update) {
-					// Sets the right id of attribute
-					cai2.setId(maxAttributeId + 1);
-					maxAttributeId++;
-					// Then adds the new attribute to the meta-model
-					attributesToAdd.add(cai2);
-				}
-
-			}
-		}
-		attributes.removeAll(attributesToRemove);
-		attributes.addAll(attributesToAdd);
-		fillAttributesMap();
-		return result;
-	}
-
+	
 	public int getNumberOfAttributes() {
 		return attributes.size();
 	}
@@ -400,7 +274,7 @@ public class ClassInfo implements Serializable {
 			indexes = new OdbArrayList<ClassInfoIndex>();
 		}
 		ClassInfoIndex cii = new ClassInfoIndex();
-		cii.setClassInfoId(id);
+		cii.setClassInfoId(coid);
 		cii.setCreationDate(OdbTime.getCurrentTimeInMs());
 		cii.setLastRebuild(cii.getCreationDate());
 		cii.setName(name);
@@ -410,7 +284,7 @@ public class ClassInfo implements Serializable {
 		for (int i = 0; i < indexFields.length; i++) {
 			attributeIds[i] = getAttributeId(indexFields[i]);
 			if(attributeIds[i]==-1){
-				throw new ODBRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getFullClassName()).addParameter(indexFields[i]));
+				throw new NeoDatisRuntimeException(NeoDatisError.CLASS_INFO_DO_NOT_HAVE_THE_ATTRIBUTE.addParameter(getFullClassName()).addParameter(indexFields[i]));
 			}
 		}
 		cii.setAttributeIds(attributeIds);
@@ -437,7 +311,7 @@ public class ClassInfo implements Serializable {
 
 	public ClassInfoIndex getIndex(int index) {
 		if (indexes == null || index >= indexes.size()) {
-			throw new ODBRuntimeException(NeoDatisError.INDEX_NOT_FOUND.addParameter(getFullClassName()).addParameter(index));
+			throw new NeoDatisRuntimeException(NeoDatisError.INDEX_NOT_FOUND.addParameter(getFullClassName()).addParameter(index));
 		}
 		return indexes.get(index);
 	}
@@ -446,42 +320,7 @@ public class ClassInfo implements Serializable {
 		this.indexes = indexes2;
 	}
 
-	/**
-	 * To detect if a class has cyclic reference
-	 * 
-	 * @return true if this class info has cyclic references
-	 */
-	public boolean hasCyclicReference() {
-		return hasCyclicReference(new OdbHashMap<String, ClassInfo>());
-	}
 
-	/**
-	 * To detect if a class has cyclic reference
-	 * 
-	 * @param alreadyVisitedClasses
-	 *            A hashmap containg all the already visited classes
-	 * @return true if this class info has cyclic references
-	 */
-	private boolean hasCyclicReference(Map<String, ClassInfo> alreadyVisitedClasses) {
-		ClassAttributeInfo cai = null;
-		boolean hasCyclicRef = false;
-		if (alreadyVisitedClasses.get(fullClassName) != null) {
-			return true;
-		}
-		Map<String, ClassInfo> localMap = new OdbHashMap<String, ClassInfo>();
-		alreadyVisitedClasses.put(fullClassName, this);
-		for (int i = 0; i < attributes.size(); i++) {
-			cai = getAttributeInfo(i);
-			if (!cai.isNative()) {
-				localMap = new OdbHashMap<String, ClassInfo>(alreadyVisitedClasses);
-				hasCyclicRef = cai.getClassInfo().hasCyclicReference(localMap);
-				if (hasCyclicRef) {
-					return true;
-				}
-			}
-		}
-		return false;
-	}
 
 	public byte getClassCategory() {
 		return classCategory;
@@ -497,23 +336,6 @@ public class ClassInfo implements Serializable {
 
 	public void setLastObjectInfoHeader(ObjectInfoHeader lastObjectInfoHeader) {
 		this.lastObjectInfoHeader = lastObjectInfoHeader;
-	}
-
-	public CIZoneInfo getUncommittedZoneInfo() {
-		return uncommitted;
-	}
-
-	/**
-	 * Get number of objects: committed and uncommitted
-	 * 
-	 * @return The number of committed and uncommitted objects
-	 */
-	public long getNumberOfObjects() {
-		return committed.getNbObjects() + uncommitted.getNbObjects();
-	}
-
-	public CommittedCIZoneInfo getOriginalZoneInfo() {
-		return original;
 	}
 
 	public boolean isSystemClass() {
@@ -606,17 +428,6 @@ public class ClassInfo implements Serializable {
 		this.fullClassName = fullClassName;
 	}
 
-	public void addHistory(Object o) {
-		if (history == null) {
-			history = new OdbArrayList<Object>(1);
-		}
-		history.add(o);
-	}
-
-	public IOdbList<? extends Object> getHistory() {
-		return history;
-	}
-
 	public boolean hasIndex(String indexName) {
 		ClassInfoIndex cii = null;
 		if (indexes == null) {
@@ -656,16 +467,21 @@ public class ClassInfo implements Serializable {
 		}
 
 		ci.setAttributesDefinitionPosition(attributesDefinitionPosition);
-		ci.setBlockSize(blockSize);
 		ci.setExtraInfo(extraInfo);
-		ci.setId(id);
-		ci.setPreviousClassOID(previousClassOID);
-		ci.setNextClassOID(nextClassOID);
+		ci.setOid(coid);
 		ci.setLastObjectInfoHeader(lastObjectInfoHeader);
-		ci.setPosition(position);
 		ci.setIndexes(indexes);
 
 		return ci;
 	}
+
+	public ClassOid getSuperClassOid() {
+		return superClassOid;
+	}
+
+	public void setSuperClassOid(ClassOid superClassOid) {
+		this.superClassOid = superClassOid;
+	}
+	
 
 }

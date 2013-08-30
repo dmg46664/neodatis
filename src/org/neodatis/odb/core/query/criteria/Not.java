@@ -21,16 +21,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.query.criteria;
 
+import java.util.HashSet;
+
 import org.neodatis.odb.core.layers.layer2.meta.AttributeValuesMap;
-import org.neodatis.tool.wrappers.list.IOdbList;
 
 
 
 public class Not extends AbstractExpression {
 
-	private ICriterion criterion;
+	private Criterion criterion;
 	
-	public Not(ICriterion criterion){
+	public Not(Criterion criterion){
 		this.criterion = criterion;
 	}
 	
@@ -43,7 +44,7 @@ public class Not extends AbstractExpression {
 		buffer.append(" not ").append(criterion);
 		return buffer.toString();
 	}
-	public IOdbList<String> getAllInvolvedFields() {
+	public HashSet<String> getAllInvolvedFields() {
 		return criterion.getAllInvolvedFields();
 	}
 	public AttributeValuesMap getValues() {

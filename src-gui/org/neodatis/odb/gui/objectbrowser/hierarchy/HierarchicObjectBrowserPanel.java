@@ -43,7 +43,7 @@ import javax.swing.tree.TreeSelectionModel;
 import org.neodatis.odb.OID;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.IBrowserContainer;
 import org.neodatis.odb.gui.Messages;
 import org.neodatis.odb.gui.objectbrowser.update.ObjectIntrospectorPanel;
@@ -64,10 +64,10 @@ public class HierarchicObjectBrowserPanel extends JPanel implements ActionListen
 	private NonNativeObjectInfoWrapper objectBeingEdited;
 	private NonNativeObjectInfoWrapper selectedObject;
 	private OID selectedOid;
-	private IStorageEngine engine;
+	private SessionEngine engine;
 	private IBrowserContainer browser;
 
-	public HierarchicObjectBrowserPanel(IBrowserContainer browser, IStorageEngine engine, ClassInfo ci, List objectValues,
+	public HierarchicObjectBrowserPanel(IBrowserContainer browser, SessionEngine engine, ClassInfo ci, List objectValues,
 			boolean withButtons, ILogger logger) {
 		super();
 		this.ci = ci;
@@ -84,7 +84,7 @@ public class HierarchicObjectBrowserPanel extends JPanel implements ActionListen
 		setBorder(new EmptyBorder(4, 4, 4, 4));
 		setLayout(new BorderLayout(4, 4));
 		TreeNode root = new DefaultMutableTreeNode(ci.getFullClassName());
-		model = new ObjectBrowserModel(ci, objectValues, root);
+		model = new ObjectBrowserModel(ci, objectValues, root, engine.getSession());
 		tree = new JTree(model);
 		tree.addTreeSelectionListener(this);
 		/*
@@ -166,7 +166,7 @@ public class HierarchicObjectBrowserPanel extends JPanel implements ActionListen
 					+ nnoi.getClassInfo().getFullClassName() + Messages.getString(" with id ") + nnoi.getOid(), Messages
 					.getString("Confirm Deletion"), JOptionPane.YES_NO_OPTION);
 			if (r == JOptionPane.OK_OPTION) {
-				engine.deleteObjectWithOid(selectedObject.getNnoi().getOid(),false);
+				engine.deleteObjectWithOid(selectedObject.getNnoi().getOid(), false);
 				TreePath tp = tree.getSelectionModel().getLeadSelectionPath();
 				System.out.println("delete done!");
 				System.out.println(tp);

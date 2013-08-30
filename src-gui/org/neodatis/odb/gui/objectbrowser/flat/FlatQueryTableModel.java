@@ -27,7 +27,7 @@ import javax.swing.table.DefaultTableModel;
 
 import org.neodatis.odb.core.layers.layer2.meta.AbstractObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ArrayObjectInfo;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.ObjectInfoUtil;
 
 public class FlatQueryTableModel extends DefaultTableModel {
@@ -42,14 +42,14 @@ public class FlatQueryTableModel extends DefaultTableModel {
 	 * @param objectInfoValues
 	 *            A list of AbstractObjectInfo
 	 */
-	public FlatQueryTableModel(IStorageEngine engine, String fullClassName, Collection objectInfoValues) {
+	public FlatQueryTableModel(SessionEngine engine, String fullClassName, Collection objectInfoValues) {
 		super();
 		init(engine, fullClassName, objectInfoValues);
 	}
 
-	private void init(IStorageEngine engine, String fullClassName, Collection objectInfoValues) {
-		attributeList = ObjectInfoUtil.buildAttributeNameList(engine.getSession(true).getMetaModel().getClassInfo(fullClassName, true));
-		valueList = ObjectInfoUtil.buildValueList(engine.getSession(true).getMetaModel().getClassInfo(fullClassName, true),
+	private void init(SessionEngine engine, String fullClassName, Collection objectInfoValues) {
+		attributeList = ObjectInfoUtil.buildAttributeNameList(engine.getSession().getMetaModel(), engine.getSession().getMetaModel().getClassInfo(fullClassName, true));
+		valueList = ObjectInfoUtil.buildValueList(engine.getSession().getMetaModel(), engine.getSession().getMetaModel().getClassInfo(fullClassName, true),
 				objectInfoValues);
 	}
 

@@ -34,7 +34,7 @@ import org.neodatis.tool.wrappers.map.OdbHashMap;
  */
 public class AttributeValuesMap extends OdbHashMap<String,Object> {
 	/** The Object Info Header of the object being represented*/
-	private ObjectInfoHeader objectInfoHeader;
+	//private ObjectInfoHeader objectInfoHeader;
 	
 	/** The oid of the object. This is used when some criteria (example is equalCriterion) is on an object,
 	 * in this case the comparison is done on the oid of the object and not on the object itself. 
@@ -42,14 +42,6 @@ public class AttributeValuesMap extends OdbHashMap<String,Object> {
 	private OID oid; 
 
 	
-	public ObjectInfoHeader getObjectInfoHeader() {
-		return objectInfoHeader;
-	}
-
-	public void setObjectInfoHeader(ObjectInfoHeader objectInfoHeader) {
-		this.objectInfoHeader = objectInfoHeader;
-	}
-
 	public Object getAttributeValue(String attributeName){
 		return get(attributeName);
 	}

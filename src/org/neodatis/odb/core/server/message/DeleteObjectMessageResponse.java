@@ -20,9 +20,7 @@
  */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.OID;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.ObjectOid;
 
 
 /**
@@ -32,19 +30,25 @@ import org.neodatis.odb.core.server.layers.layer3.engine.Message;
  * 
  */
 public class DeleteObjectMessageResponse extends Message {
-	private OID oid;
+	private ObjectOid oid;
 
-	public DeleteObjectMessageResponse(String baseId, String connectionId, String error) {
-		super(Command.STORE, baseId,connectionId);
+	public DeleteObjectMessageResponse() {
+		super();
+	}
+	public DeleteObjectMessageResponse(String baseId, String sessionId, String error) {
+		super(MessageType.DELETE_OBJECT_RESPONSE, baseId,sessionId);
 		setError(error);
 	}
-	public DeleteObjectMessageResponse(String baseId, String connectionId, OID oid) {
-		super(Command.STORE, baseId,connectionId);
+	public DeleteObjectMessageResponse(String baseId, String sessionId, ObjectOid oid) {
+		super(MessageType.DELETE_OBJECT_RESPONSE, baseId,sessionId);
 		this.oid = oid;
 	}
 
-	public OID getOid() {
+	public ObjectOid getOid() {
 		return oid;
+	}
+	public void setOid(ObjectOid oid) {
+		this.oid = oid;
 	}
 
 }

@@ -20,9 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.core.layers.layer3.OidAndBytes;
+import org.neodatis.tool.wrappers.list.IOdbList;
 /**
  * A response to a GetMessage comamnd
  * @author olivier s
@@ -30,20 +29,26 @@ import org.neodatis.odb.core.server.layers.layer3.engine.Message;
  */
 
 public class GetObjectFromIdMessageResponse extends Message {
-	/**  meta representation of the objects*/
-	private NonNativeObjectInfo nnoi;
+	/** bytes representation of the object*/
+	private IOdbList<OidAndBytes> oabs;
 	
-	public GetObjectFromIdMessageResponse(String baseId, String connectionId, String error){
-		super(Command.GET_OBJECT_FROM_ID, baseId,connectionId);
+	public GetObjectFromIdMessageResponse(){
+		super();
+	}
+	public GetObjectFromIdMessageResponse(String baseId, String sessionId, String error){
+		super(MessageType.GET_OBJECT_FROM_ID_RESPONSE, baseId,sessionId);
 		setError(error);
 	}
 
-	public GetObjectFromIdMessageResponse(String baseId, String connectionId, NonNativeObjectInfo metaRepresentation){
-		super(Command.GET_OBJECT_FROM_ID, baseId,connectionId);
-		this.nnoi = metaRepresentation;
+	public GetObjectFromIdMessageResponse(String baseId, String sessionId, IOdbList<OidAndBytes> oabs){
+		super(MessageType.GET_OBJECT_FROM_ID_RESPONSE, baseId,sessionId);
+		this.oabs = oabs;
+	}
+	public IOdbList<OidAndBytes> getOabs() {
+		return oabs;
+	}
+	public void setOabs(IOdbList<OidAndBytes> oabs) {
+		this.oabs = oabs;
 	}
 
-	public NonNativeObjectInfo getMetaRepresentation() {
-		return nnoi;
-	}
 }

@@ -20,8 +20,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import java.math.BigInteger;
+
 /**
  * A response to a CountMessage command
  * @author olivier s
@@ -29,20 +29,26 @@ import org.neodatis.odb.core.server.layers.layer3.engine.Message;
  */
 
 public class CountMessageResponse extends Message {
-	private long nbObjects;
+	private BigInteger nbObjects;
 	
+	public CountMessageResponse(){
+		super();
+	}
 	public CountMessageResponse(String baseId, String connectionId, String error){
-		super(Command.COUNT, baseId,connectionId);
+		super(MessageType.COUNT_RESPONSE, baseId,connectionId);
 		setError(error);
 	}
 
-	public CountMessageResponse(String baseId, String connectionId, long nbObjects){
-		super(Command.COUNT, baseId,connectionId);
+	public CountMessageResponse(String baseId, String connectionId, BigInteger nbObjects){
+		super(MessageType.COUNT_RESPONSE, baseId,connectionId);
 		this.nbObjects = nbObjects;
 	}
 
-	public long getNbObjects() {
+	public BigInteger getNbObjects() {
 		return nbObjects;
+	}
+	public void setNbObjects(BigInteger n){
+		this.nbObjects = n;
 	}
 
 }

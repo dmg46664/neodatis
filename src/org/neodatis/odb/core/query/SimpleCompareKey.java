@@ -55,6 +55,9 @@ public class SimpleCompareKey extends CompareKey{
     	return key.equals(c.key);
     }
 
+    public Comparable getKey(){
+    	return key;
+    }
 	public int hashCode() {
 		return key.hashCode();
 	}

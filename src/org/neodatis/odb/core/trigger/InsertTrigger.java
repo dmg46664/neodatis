@@ -21,10 +21,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.trigger;
 
-import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
+import org.neodatis.odb.core.session.ExecutionType;
 
 public abstract class InsertTrigger extends Trigger{
     public abstract boolean beforeInsert(Object object);
-    public abstract void afterInsert(Object object,OID oid);
+    public abstract void afterInsert(Object object,ObjectOid oid);
+    @Override
+    public int getExecutionType() {
+    	return ExecutionType.CLIENT;
+    }
 
 }

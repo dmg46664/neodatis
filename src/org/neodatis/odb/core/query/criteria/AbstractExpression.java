@@ -21,25 +21,38 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.query.criteria;
 
-import org.neodatis.odb.core.query.IQuery;
+import org.neodatis.odb.core.query.InternalQuery;
 
-public abstract class AbstractExpression implements IExpression {
+public abstract class AbstractExpression  implements IExpression {
 
-	private IQuery query;
+	private InternalQuery query;
 
 	public AbstractExpression() {
 	}
 
-	/** Gets thes whole query 
+	/** Gets the whole query 
 	 * @return The owner query*/
-	public IQuery getQuery() {
+	public InternalQuery getQuery() {
 		return query;
 	}
 
-	public void setQuery(IQuery query) {
+	public void setQuery(InternalQuery query) {
 		this.query = query;
 	}
 	public boolean canUseIndex() {
 		return false;
 	}
+
+	public Criterion and(Criterion criterion) {
+		return new And().add(this).add(criterion);
+	}
+
+	public Criterion or(Criterion criterion) {
+		return new Or().add(this).add(criterion);
+	}
+
+	public Criterion not() {
+		return new Not(this);
+	}
+	
 }

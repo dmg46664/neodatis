@@ -43,14 +43,17 @@ import javax.swing.JInternalFrame;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
+import javax.swing.JOptionPane;
 import javax.swing.JSplitPane;
 import javax.swing.KeyStroke;
 
-import org.neodatis.odb.OdbConfiguration;
-import org.neodatis.odb.core.layers.layer3.IBaseIdentification;
-import org.neodatis.odb.core.layers.layer3.IOFileParameter;
-import org.neodatis.odb.core.layers.layer3.IOSocketParameter;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.NeoDatis;
+import org.neodatis.odb.NeoDatisConfig;
+import org.neodatis.odb.Release;
+import org.neodatis.odb.core.layers.layer4.BaseIdentification;
+import org.neodatis.odb.core.layers.layer4.IOFileParameter;
+import org.neodatis.odb.core.layers.layer4.IOSocketParameter;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.connect.Connection;
 import org.neodatis.odb.gui.connect.LocalConnection;
 import org.neodatis.odb.gui.connect.MainConnectPanel;
@@ -62,6 +65,8 @@ import org.neodatis.tool.DLogger;
 import org.neodatis.tool.ILogger;
 import org.neodatis.tool.wrappers.OdbThread;
 
+import edu.stanford.ejalbert.BrowserLauncher;
+
 public class ODBExplorerFrame extends JFrame implements ActionListener, ItemListener {
 	private JDesktopPane desktop;
 
@@ -70,10 +75,12 @@ public class ODBExplorerFrame extends JFrame implements ActionListener, ItemList
 	private final LoggerPanel logger;
 
 	private String nextThreadAction;
+	
+	protected NeoDatisConfig config;
 
 	public ODBExplorerFrame() {
 		super("NeoDatis Object Explorer");
-
+		config = NeoDatis.getConfig();
 		// Make the big window be indented 50 pixels from each edge
 		// of the screen.
 		int inset = 5;
@@ -102,7 +109,7 @@ public class ODBExplorerFrame extends JFrame implements ActionListener, ItemList
 		JMenuBar menuBar = new JMenuBar();
 
 		// Set up the lone menu.
-		JMenu menu = new JMenu("NeoDatis ODB");
+		JMenu menu = new JMenu("NeoDatis");
 		menu.setMnemonic(KeyEvent.VK_K);
 		menuBar.add(menu);
 
@@ -156,6 +163,41 @@ public class ODBExplorerFrame extends JFrame implements ActionListener, ItemList
 		menu.add(cbmi);
 
 		// Set up the options menu.
+		menu = new JMenu("Go to");
+		menu.setMnemonic(KeyEvent.VK_G);
+		menuBar.add(menu);
+
+		JMenuItem cbNeoDatisSite = new JMenuItem("NeoDatis Web Site");
+		cbNeoDatisSite.setMnemonic(KeyEvent.VK_W);
+		cbNeoDatisSite.setActionCommand("neodatis-site");
+		cbNeoDatisSite.addActionListener(this);
+		menu.add(cbNeoDatisSite);
+
+		JMenuItem cbNeoDatisSF = new JMenuItem("Source forge forum");
+		cbNeoDatisSF.setMnemonic(KeyEvent.VK_S);
+		cbNeoDatisSF.setActionCommand("neodatis-forum");
+		cbNeoDatisSF.addActionListener(this);
+		menu.add(cbNeoDatisSF);
+
+		JMenuItem cbNeoDatisBug = new JMenuItem("Report a bug");
+		cbNeoDatisBug.setMnemonic(KeyEvent.VK_S);
+		cbNeoDatisBug.setActionCommand("neodatis-new-bug");
+		cbNeoDatisBug.addActionListener(this);
+		menu.add(cbNeoDatisBug);
+
+		JMenuItem cbNeoDatisFR = new JMenuItem("Create a feature request");
+		cbNeoDatisFR.setMnemonic(KeyEvent.VK_S);
+		cbNeoDatisFR.setActionCommand("neodatis-new-fr");
+		cbNeoDatisFR.addActionListener(this);
+		menu.add(cbNeoDatisFR);
+
+		JMenuItem cbNeoDatisBuyService = new JMenuItem("Buy service or support from NeoDatis");
+		cbNeoDatisBuyService.setMnemonic(KeyEvent.VK_S);
+		cbNeoDatisBuyService.setActionCommand("neodatis-buy-service");
+		cbNeoDatisBuyService.addActionListener(this);
+		menu.add(cbNeoDatisBuyService);
+
+		// Set up the options menu.
 		menu = new JMenu("Help");
 		menu.setMnemonic(KeyEvent.VK_H);
 		menuBar.add(menu);
@@ -205,6 +247,21 @@ public class ODBExplorerFrame extends JFrame implements ActionListener, ItemList
 			}
 			return;
 		}
+		if ("neodatis-site".equals(e.getActionCommand())) { // new
+			goToNeoDatisSite();
+		}
+		if ("neodatis-forum".equals(e.getActionCommand())) { // new
+			goToAddress("https://sourceforge.net/forum/?group_id=179124");
+		}
+		if ("neodatis-new-bug".equals(e.getActionCommand())) { // new
+			goToAddress("https://sourceforge.net/tracker/?group_id=179124&atid=887885");
+		}
+		if ("neodatis-new-fr".equals(e.getActionCommand())) { // new
+			goToAddress("https://sourceforge.net/tracker/?group_id=179124&atid=887888");
+		}
+		if ("neodatis-buy-service".equals(e.getActionCommand())) { // new
+			goToAddress("http://www.neodatis.com");
+		}
 		if ("quit".equals(e.getActionCommand())) { // new
 			quit();
 		}
@@ -213,32 +270,65 @@ public class ODBExplorerFrame extends JFrame implements ActionListener, ItemList
 	/**
 	 * 
 	 */
-	private void displayAbout() {
-		JInternalFrame iframe = new JInternalFrame("About NeoDatis ODB");
-		iframe.setContentPane(new AboutDialog());
-		iframe.pack();
-		iframe.setVisible(true); // necessary as of 1.3
-		iframe.setClosable(true);
-
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		int inset = 100;
-
-		iframe.setLocation(screenSize.width / 2 - inset, screenSize.height / 2 - inset);
-		desktop.add(iframe);
+	private void goToAddress(String url) {
 		try {
-			iframe.setSelected(true);
-		} catch (java.beans.PropertyVetoException e) {
+			BrowserLauncher.openURL(url);
+		} catch (Exception e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Opening URL in default browser is not supported on your system\n\nPlease go to " + url,
+					"Error", JOptionPane.ERROR);
 		}
 
 	}
 
+	/**
+	 * 
+	 */
+	private void goToNeoDatisSite() {
+		try {
+			BrowserLauncher.openURL("http://www.neodatis.org");
+		} catch (Exception e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null,
+					"Opening URL in default browser is not supported on your system\n\nPlease go to www.neodatis.org", "Error",
+					JOptionPane.ERROR);
+		}
+
+	}
+
+	/**
+	 * 
+	 */
+	private void displayAbout() {
+
+		String s = "NeoDatis Object Database - www.neodatis.org\n\nVersion\t" + Release.RELEASE_NUMBER + "\nBuild\t"
+				+ Release.RELEASE_BUILD + "\nDate\t" + Release.RELEASE_DATE;
+
+		JOptionPane.showMessageDialog(null, s, "About NeoDatis Object Database", JOptionPane.OK_OPTION);
+
+		/*
+		 * JInternalFrame iframe = new JInternalFrame("About NeoDatis ODB");
+		 * iframe.setContentPane(new AboutDialog()); iframe.pack();
+		 * iframe.setVisible(true); // necessary as of 1.3
+		 * iframe.setClosable(true);
+		 * 
+		 * Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+		 * int inset = 100;
+		 * 
+		 * iframe.setLocation(screenSize.width / 2 - inset, screenSize.height /
+		 * 2 - inset); desktop.add(iframe); try { iframe.setSelected(true); }
+		 * catch (java.beans.PropertyVetoException e) { }
+		 */
+
+	}
+
 	private void tolerateInconsistency(boolean tolerate) {
-		OdbConfiguration.setThrowExceptionWhenInconsistencyFound(!tolerate);
+		config.setThrowExceptionWhenInconsistencyFound(!tolerate);
 	}
 
 	public void openODBBase() throws Exception {
 
-		IStorageEngine engine = null;
+		SessionEngine engine = null;
 		MainConnectPanel mcp = null;
 		Connection connection = null;
 
@@ -260,14 +350,18 @@ public class ODBExplorerFrame extends JFrame implements ActionListener, ItemList
 			return;
 		}
 		// build the base identification based upon the connection
-		IBaseIdentification baseIdentification = null;
+		BaseIdentification baseIdentification = null;
 		if (connection instanceof LocalConnection) {
 			LocalConnection lc = (LocalConnection) connection;
-			baseIdentification = new IOFileParameter(lc.getFileName(), true, lc.getUser(), lc.getUser() == null ? null : lc.getPassword());
+			if (lc.getUser() != null) {
+				config.setUser(lc.getUser());
+				config.setPassword(lc.getPassword());
+			}
+			baseIdentification = new IOFileParameter(lc.getFileName(), true, config);
 		} else {
 			RemoteConnection rc = (RemoteConnection) connection;
-			baseIdentification = new IOSocketParameter(rc.getHost(), rc.getPort(), rc.getBaseIdentifier(), IOSocketParameter.TYPE_DATABASE,
-					rc.getUser(), rc.getPassword());
+			NeoDatisConfig config = NeoDatis.getConfig().setHostAndPort(rc.getHost(), rc.getPort()).setUser(rc.getUser()).setPassword(rc.getPassword());
+			baseIdentification = new IOSocketParameter(rc.getBaseIdentifier(), config);
 		}
 
 		JInternalFrame iframe = createInternalFrame(connection.toString(), logger);

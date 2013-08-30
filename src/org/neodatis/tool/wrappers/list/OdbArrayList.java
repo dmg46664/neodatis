@@ -19,6 +19,9 @@ public class OdbArrayList<E> extends ArrayList<E> implements IOdbList<E> {
 	public OdbArrayList(int size) {
 		super(size);
 	}
+	public OdbArrayList(Collection<E> c) {
+		super(c);
+	}
 
 	public boolean addAll(Collection<? extends E> c) {
 		return super.addAll(c);
@@ -35,5 +38,12 @@ public class OdbArrayList<E> extends ArrayList<E> implements IOdbList<E> {
 
 	public E set(int index, E o){
 		return super.set(index, o);
+	}
+
+	/* (non-Javadoc)
+	 * @see org.neodatis.tool.wrappers.list.IOdbList#getLast()
+	 */
+	public E getLast() {
+		return get(size()-1);
 	}
 }

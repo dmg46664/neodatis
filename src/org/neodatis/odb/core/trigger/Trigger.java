@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 package org.neodatis.odb.core.trigger;
 
 import org.neodatis.odb.ODB;
+import org.neodatis.odb.core.layers.layer4.engine.Dummy;
 
 
 /** A simple base class for all triggers.
@@ -28,12 +29,20 @@ import org.neodatis.odb.ODB;
  * @author olivier
  *
  */
-public class Trigger {
+public abstract class Trigger {
 	private ODB odb;
 	public void setOdb(ODB odb){
 		this.odb = odb;
 	}
 	public ODB getOdb(){
 		return odb;
+	}
+	public abstract int getExecutionType();
+	
+	public void setSessionParameter(String name, Object o){
+		Dummy.getEngine(odb).getSession().setUserParameter(name, o);
+	}
+	public Object getSessionParameter(String name, boolean remove){
+		return Dummy.getEngine(odb).getSession().getUserParameter(name, remove);
 	}
 }

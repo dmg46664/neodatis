@@ -20,9 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.OID;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.ObjectOid;
 
 
 /** A StoreMessage is used by the Client/Server mode to store an object
@@ -31,16 +29,19 @@ import org.neodatis.odb.core.server.layers.layer3.engine.Message;
  *
  */
 public class DeleteObjectMessage extends Message {
-	private OID oid;
+	private ObjectOid oid;
 	private boolean cascade;
 	
-	public DeleteObjectMessage(String baseId, String connectionId, OID oid, boolean cascade){
-		super(Command.DELETE_OBJECT, baseId,connectionId);
+	public DeleteObjectMessage(){
+		super();
+	}
+	public DeleteObjectMessage(String baseId, String connectionId, ObjectOid oid, boolean cascade){
+		super(MessageType.DELETE_OBJECT, baseId,connectionId);
 		this.oid = oid;
 		this.cascade = cascade;
 	}
 
-	public OID getOid() {
+	public ObjectOid getOid() {
 		return oid;
 	}
 	public String toString() {
@@ -53,6 +54,9 @@ public class DeleteObjectMessage extends Message {
 
 	public void setCascade(boolean cascade) {
 		this.cascade = cascade;
+	}
+	public void setObjectOid(ObjectOid oid) {
+		this.oid = oid;
 	}
 	
 }

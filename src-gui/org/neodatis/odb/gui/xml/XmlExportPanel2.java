@@ -35,7 +35,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.LoggerPanel;
 import org.neodatis.odb.gui.Messages;
 import org.neodatis.odb.gui.component.GUITool;
@@ -45,7 +45,7 @@ import org.neodatis.tool.wrappers.OdbTime;
 
 public class XmlExportPanel2 extends JPanel implements ActionListener, Runnable {
 
-	private IStorageEngine storageEngine;
+	private SessionEngine storageEngine;
 
 	private JButton btExport;
 	private JButton btCancel;

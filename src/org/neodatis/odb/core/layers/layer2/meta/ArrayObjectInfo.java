@@ -34,19 +34,19 @@ public class ArrayObjectInfo extends GroupObjectInfo {
 	private String realArrayComponentClassName;
 	private int componentTypeId;
 
-	public ArrayObjectInfo(Object[] array) {
+	public ArrayObjectInfo(AbstractObjectInfo[] array) {
 		super(array, ODBType.ARRAY_ID);
 		realArrayComponentClassName = ODBType.DEFAULT_ARRAY_COMPONENT_CLASS_NAME;
 	}
 
-	public ArrayObjectInfo(Object[] array, ODBType type, int componentId) {
+	public ArrayObjectInfo(AbstractObjectInfo[] array, ODBType type, int componentId) {
 		super(array, type);
 		realArrayComponentClassName = ODBType.DEFAULT_ARRAY_COMPONENT_CLASS_NAME;
 		componentTypeId = componentId;
 	}
 
-	public Object[] getArray() {
-		return (Object[]) theObject;
+	public AbstractObjectInfo[] getArray() {
+		return (AbstractObjectInfo[]) theObject;
 	}
 
 	public String toString() {
@@ -106,6 +106,7 @@ public class ArrayObjectInfo extends GroupObjectInfo {
 		ArrayObjectInfo arrayOfAoi = new ArrayObjectInfo(aois);
 		arrayOfAoi.setRealArrayComponentClassName(realArrayComponentClassName);
 		arrayOfAoi.setComponentTypeId(componentTypeId);
+		arrayOfAoi.setNonNativeObjects(getNonNativeObjects());
 		return arrayOfAoi;
 	}
 

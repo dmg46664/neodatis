@@ -24,9 +24,8 @@ package org.neodatis.odb.core.layers.layer2.meta;
 import java.io.Serializable;
 
 import org.neodatis.btree.IBTree;
-import org.neodatis.odb.OID;
-import org.neodatis.odb.core.query.execution.IndexTool;
-import org.neodatis.tool.wrappers.OdbComparable;
+import org.neodatis.odb.ClassOid;
+import org.neodatis.odb.core.query.IndexTool;
 
 /**
  * An index of a class info
@@ -37,7 +36,7 @@ public class ClassInfoIndex implements Serializable{
 	public static final byte ENABLED = 1;
 	public static final byte DISABLED = 2;
 	
-	private OID classInfoId;
+	private ClassOid classInfoId;
 	private String name;
 	private byte status;
 	private boolean isUnique;
@@ -46,10 +45,10 @@ public class ClassInfoIndex implements Serializable{
 	private int [] attributeIds;
 	private IBTree btree;
 	
-	public OID getClassInfoId() {
+	public ClassOid getClassInfoId() {
 		return classInfoId;
 	}
-	public void setClassInfoId(OID classInfoId) {
+	public void setClassInfoId(ClassOid classInfoId) {
 		this.classInfoId = classInfoId;
 	}
 	public int[] getAttributeIds() {
@@ -97,7 +96,7 @@ public class ClassInfoIndex implements Serializable{
 	public IBTree getBTree() {
 		return this.btree;		
 	}
-	public OdbComparable computeKey(NonNativeObjectInfo nnoi) {
+	public Comparable computeKey(NonNativeObjectInfo nnoi) {
 		return IndexTool.buildIndexKey(name, nnoi, attributeIds);
 	}
 	public int getNbAttributes() {

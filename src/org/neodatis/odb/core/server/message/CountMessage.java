@@ -20,9 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
+import org.neodatis.odb.core.query.criteria.CriteriaQuery;
 
 
 /**
@@ -33,8 +31,11 @@ import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
 public class CountMessage extends Message {
 	private CriteriaQuery query;
 	
-	public CountMessage(String baseId, String connectionId, CriteriaQuery query){
-		super(Command.COUNT, baseId,connectionId);
+	public CountMessage(){
+		super();
+	}
+	public CountMessage(String baseId, String sessionId, CriteriaQuery query){
+		super(MessageType.COUNT, baseId,sessionId);
 		this.query = query;
 	}
 
@@ -43,6 +44,12 @@ public class CountMessage extends Message {
 	}
 	public String toString() {
 		return "Count";
+	}
+	/**
+	 * @param q
+	 */
+	public void setCriteriaQuery(CriteriaQuery q) {
+		this.query = q;
 	}
 
 

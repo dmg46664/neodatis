@@ -4,7 +4,7 @@
 package org.neodatis.odb.core.server.connection;
 
 import org.neodatis.odb.OID;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.session.SessionEngine;
 
 /**
  * @author olivier
@@ -14,7 +14,7 @@ public interface IConnection {
 
 	String getId();
 
-	IStorageEngine getStorageEngine();
+	SessionEngine getSessionEngine();
 
 	void close() throws Exception;
 
@@ -26,7 +26,6 @@ public interface IConnection {
 
 	boolean lockObjectWithOid(OID oid) throws InterruptedException;
 	boolean lockClass(String fullClassName) throws InterruptedException;
-	void unlockClass(String fullClassName) throws Exception;
 
 	void setCurrentAction(int action);
 

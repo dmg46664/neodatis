@@ -20,15 +20,15 @@
  */
 package org.neodatis.odb.xml;
 
+import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.Date;
 import java.util.Iterator;
 
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.ODB;
-import org.neodatis.odb.ODBRuntimeException;
 import org.neodatis.odb.Objects;
-import org.neodatis.odb.OdbConfiguration;
 import org.neodatis.odb.core.NeoDatisError;
 import org.neodatis.odb.core.layers.layer2.meta.AbstractObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ArrayObjectInfo;
@@ -36,17 +36,16 @@ import org.neodatis.odb.core.layers.layer2.meta.AtomicNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassAttributeInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
 import org.neodatis.odb.core.layers.layer2.meta.CollectionObjectInfo;
-import org.neodatis.odb.core.layers.layer2.meta.EnumNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.MapObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.MetaModel;
 import org.neodatis.odb.core.layers.layer2.meta.NativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeNullObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ODBType;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
-import org.neodatis.odb.impl.core.layers.layer3.engine.Dummy;
-import org.neodatis.odb.impl.core.layers.layer3.engine.StorageEngineConstant;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
+import org.neodatis.odb.core.layers.layer4.engine.Dummy;
+import org.neodatis.odb.core.query.InternalQuery;
+import org.neodatis.odb.core.query.criteria.CriteriaQueryImpl;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.xml.tool.XMLGenerator;
 import org.neodatis.odb.xml.tool.XMLNode;
 import org.neodatis.tool.ConsoleLogger;
@@ -63,41 +62,44 @@ import org.neodatis.tool.ILogger;
  * 
  */
 public class XMLExporter {
-	private IStorageEngine storageEngine;
+	private SessionEngine engine;
 	private ILogger externalLogger;
+	private XMLGenerator xmlGenerator;
 
-	public XMLExporter(IStorageEngine storageEngine) {
-		this.storageEngine = storageEngine;
+	public XMLExporter(SessionEngine storageEngine) {
+		this.engine = storageEngine;
 	}
 
 	public XMLExporter(ODB odb) {
-		this.storageEngine = Dummy.getEngine(odb);
+		this.engine = Dummy.getEngine(odb);
 	}
 
 	public void export(String directory, String filename) throws Exception {
 
-		if (!storageEngine.isLocal()) {
-			throw new ODBRuntimeException(NeoDatisError.NOT_YET_IMPLEMENTED.addParameter("Export in Client Server mode"));
+		if (!engine.getSession().isLocal()) {
+			throw new NeoDatisRuntimeException(NeoDatisError.NOT_YET_IMPLEMENTED.addParameter("Export in Client Server mode"));
 		}
-		String baseName = storageEngine.getBaseIdentification().getIdentification();
+		String baseName = engine.getSession().getBaseIdentification().getBaseId();
 		String completeFileName = directory + "/" + filename;
-		XMLGenerator.setIncrementalWriteOn(completeFileName);
 
-		info("Exporting database ODB database " + baseName + " to " + completeFileName);
+		xmlGenerator = new XMLGenerator(engine.getSession().getConfig().getDatabaseCharacterEncoding());
+		xmlGenerator.setIncrementalWriteOn(completeFileName);
 
-		XMLNode root = XMLGenerator.createRoot(XmlTags.TAG_ODB);
+		info("Exporting NeoDatis database " + baseName + " to " + new File(completeFileName).getAbsolutePath());
+
+		XMLNode root = xmlGenerator.createRoot(XmlTags.TAG_ODB);
 
 		root.addAttribute(XmlTags.ATTRIBUTE_NAME, format(baseName));
 		root.addAttribute(XmlTags.ATTRIBUTE_EXPORT_DATE, format(new Date()));
-		root.addAttribute(XmlTags.ATTRIBUTE_MAX_OID, String.valueOf(storageEngine.getMaxOid().getObjectId()));
-		root.addAttribute(XmlTags.ATTRIBUTE_FILE_FORMAT_VERSION, String.valueOf(StorageEngineConstant.CURRENT_FILE_FORMAT_VERSION));
+		root.addAttribute(XmlTags.ATTRIBUTE_OID_GENERATOR, engine.getSession().getOidGenerator().getSimpleName());
+		root.addAttribute(XmlTags.ATTRIBUTE_FILE_FORMAT_VERSION, this.engine.getFileFormatVersion());
 		root.endHeader();
 
 		buildMetaModelXml(root);
 		buildObjectsXml(root);
 
 		root.end();
-		XMLGenerator.close();
+		xmlGenerator.close();
 		info("End of Export");
 
 	}
@@ -105,7 +107,7 @@ public class XMLExporter {
 	private void buildObjectsXml(XMLNode root) throws Exception {
 		XMLNode objectsXml = root.createNode(XmlTags.TAG_OBJECTS);
 		objectsXml.endHeader();
-		MetaModel metaModel = storageEngine.getSession(true).getMetaModel();
+		MetaModel metaModel = engine.getSession().getMetaModel();
 
 		info("Exporting Objects of " + metaModel.getNumberOfUserClasses() + " classes");
 
@@ -119,35 +121,32 @@ public class XMLExporter {
 	}
 
 	private void buildObjectsOfClassXml(XMLNode objectsXml, ClassInfo ci) throws Exception {
-		try{
-			info(". Exporting Objects of " + ci.getFullClassName() + " (" + ci.getNumberOfObjects() + ")");
-			Objects objects = storageEngine.getObjectInfos(new CriteriaQuery(ci.getFullClassName()), false, -1, -1, false);
+		info(". Exporting Objects of " + ci.getFullClassName() + " - coid=" + ci.getOid());
+		InternalQuery q = new CriteriaQueryImpl(ci.getFullClassName());
+		q.getQueryParameters().setInMemory(false);
+		Objects objects = engine.getMetaObjects(q);
 
-			int i = 0;
-			while (objects.hasNext()) {
-				Object o = objects.next();
-				AbstractObjectInfo aoi = (AbstractObjectInfo) o;
-				buildOneObjectXml(objectsXml, ci, (NonNativeObjectInfo) aoi);
-				i++;
-				if (i % 10000 == 0) {
-					info(". " + i + " objects");
-				}
+		int i = 0;
+		while (objects.hasNext()) {
+			Object o = objects.next();
+			AbstractObjectInfo aoi = (AbstractObjectInfo) o;
+			buildOneObjectXml(objectsXml, ci, (NonNativeObjectInfo) aoi);
+			i++;
+			if (i % 10000 == 0) {
+				info(". " + i + " objects");
 			}
-			info(". Done." + i + " objects");
-			objects.clear();
-			objects = null;
-			storageEngine.getSession(true).clearCache();
-		}catch (Exception e) {
-			System.err.println("Error while exporting objects of class "+ ci.getFullClassName());
-			throw e;
 		}
+		info(". Done : " + i + " objects exported");
+		objects.clear();
+		objects = null;
+		engine.getSession().clearCache();
 	}
 
 	private void buildOneObjectXml(XMLNode node, ClassInfo ci, NonNativeObjectInfo nnoi) throws UnsupportedEncodingException {
 
 		XMLNode objectXml = node.createNode(XmlTags.TAG_OBJECT);
 		objectXml.addAttribute(XmlTags.ATTRIBUTE_OID, String.valueOf(nnoi.getOid()));
-		objectXml.addAttribute(XmlTags.ATTRIBUTE_CLASS_ID, String.valueOf(ci.getId()));
+		objectXml.addAttribute(XmlTags.ATTRIBUTE_CLASS_ID, String.valueOf(ci.getOid()));
 		objectXml.endHeader();
 		int attributeId = -1;
 		AbstractObjectInfo aoi = null;
@@ -215,8 +214,8 @@ public class XMLExporter {
 			}
 			if (an.getObject() instanceof String) {
 				String s = (String) an.getObject();
-				String encoding = OdbConfiguration.getDatabaseCharacterEncoding();
-				if (encoding == null || encoding.equals(StorageEngineConstant.NO_ENCODING)) {
+				String encoding = engine.getSession().getConfig().getDatabaseCharacterEncoding();
+				if (encoding == null) {
 					return URLEncoder.encode(s);
 				}
 				return URLEncoder.encode(s, encoding);
@@ -253,7 +252,7 @@ public class XMLExporter {
 		listXml.end();
 	}
 
-	private void buildArrayXml(XMLNode node, ArrayObjectInfo aoi) throws UnsupportedEncodingException {
+	private void buildArrayXml(XMLNode node, ArrayObjectInfo aoi) {
 
 		if (aoi.isNull()) {
 			node.createNode(XmlTags.TAG_NULL_ARRAY).end();
@@ -273,7 +272,7 @@ public class XMLExporter {
 					element.addAttribute(XmlTags.ATTRIBUTE_NULL, "true");
 				} else {
 					NativeObjectInfo noi = (NativeObjectInfo) aboi;
-					element.addAttribute(XmlTags.ATTRIBUTE_VALUE, format(noi.getObject().toString()));
+					element.addAttribute(XmlTags.ATTRIBUTE_VALUE, String.valueOf(noi.getObject()));
 				}
 			} else {
 				if (aboi.isNull()) {
@@ -288,7 +287,7 @@ public class XMLExporter {
 		listXml.end();
 	}
 
-	private void buildMapXml(XMLNode node, MapObjectInfo moi) throws UnsupportedEncodingException {
+	private void buildMapXml(XMLNode node, MapObjectInfo moi) {
 
 		if (moi.isNull()) {
 			node.createNode(XmlTags.TAG_NULL_MAP).end();
@@ -306,12 +305,8 @@ public class XMLExporter {
 			element = listXml.createNode(XmlTags.TAG_ELEMENT);
 			if (aoi.isNative()) {
 				NativeObjectInfo noi = (NativeObjectInfo) aoi;
-				element.addAttribute(XmlTags.ATTRIBUTE_KEY_VALUE, format(String.valueOf(noi.getObject())));
+				element.addAttribute(XmlTags.ATTRIBUTE_KEY_VALUE, String.valueOf(noi.getObject()));
 				element.addAttribute(XmlTags.ATTRIBUTE_KEY_TYPE, ODBType.getNameFromId(aoi.getOdbTypeId()));
-				if(noi.isEnumObject()){
-					EnumNativeObjectInfo enoi = (EnumNativeObjectInfo) noi;
-					element.addAttribute(XmlTags.ATTRIBUTE_ENUM_CLASS_OID, String.valueOf(enoi.getEnumClassInfo().getId().getObjectId()));
-				}
 			} else {
 				NonNativeObjectInfo nnoi = (NonNativeObjectInfo) aoi;
 				element.addAttribute(XmlTags.ATTRIBUTE_KEY_ID, String.valueOf(nnoi.getOid()));
@@ -319,11 +314,20 @@ public class XMLExporter {
 			aoi = (AbstractObjectInfo) moi.getMap().get(aoi);
 			if (aoi.isNative()) {
 				NativeObjectInfo noi = (NativeObjectInfo) aoi;
-				element.addAttribute(XmlTags.ATTRIBUTE_VALUE, format( String.valueOf(noi.getObject())));
-				element.addAttribute(XmlTags.ATTRIBUTE_VALUE_TYPE, ODBType.getNameFromId(aoi.getOdbTypeId()));
+
+				if (noi.isNull()) {
+					element.addAttribute(XmlTags.ATTRIBUTE_VALUE_IS_NULL, XmlTags.VALUE_NATIVE);
+				} else {
+					element.addAttribute(XmlTags.ATTRIBUTE_VALUE, String.valueOf(noi.getObject()));
+					element.addAttribute(XmlTags.ATTRIBUTE_VALUE_TYPE, ODBType.getNameFromId(aoi.getOdbTypeId()));
+				}
 			} else {
 				NonNativeObjectInfo nnoi = (NonNativeObjectInfo) aoi;
-				element.addAttribute(XmlTags.ATTRIBUTE_OBJECT_REF_ID, String.valueOf(nnoi.getOid()));
+				if (nnoi.isNull()) {
+					element.addAttribute(XmlTags.ATTRIBUTE_VALUE_IS_NULL, XmlTags.VALUE_NON_NATIVE);
+				} else {
+					element.addAttribute(XmlTags.ATTRIBUTE_OBJECT_REF_ID, String.valueOf(nnoi.getOid()));
+				}
 			}
 			element.end();
 		}
@@ -334,7 +338,7 @@ public class XMLExporter {
 		XMLNode metaModelXml = root.createNode(XmlTags.TAG_METAMODEL);
 		metaModelXml.endHeader();
 
-		MetaModel metaModel = storageEngine.getSession(true).getMetaModel();
+		MetaModel metaModel = engine.getSession().getMetaModel();
 
 		info("Exporting MetaModel : " + metaModel.getNumberOfClasses() + " classes");
 		Iterator iterator = metaModel.getAllClasses().iterator();
@@ -344,17 +348,16 @@ public class XMLExporter {
 		}
 		info("Exporting MetaModel done");
 	}
-	
 
 	private void buildClassInfoXml(XMLNode node, ClassInfo ci) {
 		XMLNode classXml = node.createNode(XmlTags.TAG_CLASS);
-		classXml.addAttribute(XmlTags.ATTRIBUTE_ID, String.valueOf(ci.getId()));
+		classXml.addAttribute(XmlTags.ATTRIBUTE_ID, String.valueOf(ci.getOid()));
 		classXml.addAttribute(XmlTags.ATTRIBUTE_NAME, ci.getFullClassName());
 		// FIXME manage extra info
 
 		classXml.endHeader();
 
-		info(". Class " + ci.getFullClassName());
+		info(". Class " + ci.getFullClassName() + " - coid=" + ci.getOid());
 
 		for (int i = 0; i < ci.getAttributes().size(); i++) {
 			ClassAttributeInfo cai = ci.getAttributeInfo(i);
@@ -367,7 +370,12 @@ public class XMLExporter {
 		XMLNode classAttributeXml = node.createNode(XmlTags.TAG_ATTRIBUTE);
 		classAttributeXml.addAttribute(XmlTags.ATTRIBUTE_ID, String.valueOf(cai.getId()));
 		classAttributeXml.addAttribute(XmlTags.ATTRIBUTE_NAME, cai.getName());
-		classAttributeXml.addAttribute(XmlTags.ATTRIBUTE_TYPE, cai.getAttributeType().getName());
+		if (cai.isNonNative()) {
+			classAttributeXml.addAttribute(XmlTags.ATTRIBUTE_CLASS_ID, cai.getAttributeClassOid().oidToString());
+		} else {
+			classAttributeXml.addAttribute(XmlTags.ATTRIBUTE_TYPE, cai.getClassName());
+		}
+
 		if (cai.getAttributeType().isArray()) {
 			classAttributeXml.addAttribute(XmlTags.ATTRIBUTE_ARRAY_OF, cai.getAttributeType().getSubType().getName());
 		}
@@ -381,7 +389,6 @@ public class XMLExporter {
 	public void logToConsole() {
 		this.externalLogger = new ConsoleLogger();
 	}
-
 	public void setExternalLogger(ILogger logger) {
 		this.externalLogger = logger;
 	}

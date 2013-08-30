@@ -20,17 +20,10 @@
  */
 package org.neodatis.tool;
 
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
 import org.neodatis.tool.wrappers.OdbString;
 
 public class ConsoleLogger implements ILogger {
 	private int i;
-	private IStorageEngine engine;
-
-	public ConsoleLogger(IStorageEngine engine) {
-		this.engine = engine;
-		i = 0;
-	}
 
 	public ConsoleLogger() {
 		i = 0;
@@ -54,11 +47,6 @@ public class ConsoleLogger implements ILogger {
 	}
 
 	public void info(Object o) {
-		if (i % 20 == 0) {
-			if (engine != null) {
-				System.out.println(engine.getSession(true).getCache().toString());
-			}
-		}
 		System.out.println(o);
 		i++;
 	}

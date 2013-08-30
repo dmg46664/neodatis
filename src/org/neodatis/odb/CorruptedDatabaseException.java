@@ -29,7 +29,7 @@ import org.neodatis.odb.core.IError;
  * @author olivier
  * 
  */
-public class CorruptedDatabaseException extends ODBRuntimeException {
+public class CorruptedDatabaseException extends NeoDatisRuntimeException {
 
 	public CorruptedDatabaseException(IError error, String message) {
 		super(error, message);

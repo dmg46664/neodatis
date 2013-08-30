@@ -32,9 +32,9 @@ public class ClassInfoWrapper implements Comparable {
 
 	public String toString() {
 		if (ci.isSystemClass()) {
-			return "(ODB) - " + ci.getFullClassName() + " (" + ci.getNumberOfObjects() + " )";
+			return "(ODB) - " + ci.getFullClassName();
 		}
-		return OdbClassUtil.getClassName(ci.getFullClassName()) + " (" + ci.getNumberOfObjects() + ")";
+		return OdbClassUtil.getClassName(ci.getFullClassName());
 	}
 
 	/**

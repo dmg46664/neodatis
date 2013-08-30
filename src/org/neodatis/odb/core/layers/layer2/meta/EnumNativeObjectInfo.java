@@ -22,6 +22,7 @@ package org.neodatis.odb.core.layers.layer2.meta;
 
 import java.util.Map;
 
+import org.neodatis.odb.ClassOid;
 import org.neodatis.odb.OID;
 
 /**
@@ -33,11 +34,18 @@ import org.neodatis.odb.OID;
  */
 public class EnumNativeObjectInfo extends NativeObjectInfo {
 
+	/** @depracated*/
 	private ClassInfo enumClassInfo;
+	private ClassOid enumClassOid;
 
 	public EnumNativeObjectInfo(ClassInfo classInfo, String enumName) {
 		super(enumName, ODBType.ENUM_ID);
 		this.enumClassInfo = classInfo;
+	}
+
+	public EnumNativeObjectInfo(ClassOid classOid, String enumName) {
+		super(enumName, ODBType.ENUM_ID);
+		this.enumClassOid = classOid;
 	}
 
 	public String toString() {
@@ -63,12 +71,21 @@ public class EnumNativeObjectInfo extends NativeObjectInfo {
 		return getObject().toString();
 	}
 
+	/** @deprecated */
 	public ClassInfo getEnumClassInfo() {
 		return enumClassInfo;
 	}
 
 	public void setEnumClassInfo(ClassInfo enumClassInfo) {
 		this.enumClassInfo = enumClassInfo;
+	}
+
+	public ClassOid getEnumClassOid() {
+		return enumClassOid;
+	}
+
+	public void setEnumClassOid(ClassOid enumClassOid) {
+		this.enumClassOid = enumClassOid;
 	}
 
 	

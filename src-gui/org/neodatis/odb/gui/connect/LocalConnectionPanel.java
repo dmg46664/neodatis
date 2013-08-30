@@ -36,18 +36,18 @@ import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
+import org.neodatis.odb.NeoDatis;
 import org.neodatis.odb.ODB;
-import org.neodatis.odb.ODBFactory;
 import org.neodatis.odb.Objects;
-import org.neodatis.odb.core.query.IQuery;
-import org.neodatis.odb.core.query.criteria.Where;
+import org.neodatis.odb.Query;
+import org.neodatis.odb.core.query.criteria.W;
 import org.neodatis.odb.gui.LoggerPanel;
 import org.neodatis.odb.gui.Messages;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
 import org.neodatis.tool.ILogger;
 
 public class LocalConnectionPanel extends ConnectionPanel implements ActionListener {
@@ -75,8 +75,9 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 		try {
 			v = new Vector<LocalConnection>(getRecentLocalConnections());
 		} catch (Exception e) {
-			String error = "Error while loading recent conections :" + e.getMessage();
-			logger.error(error, e);
+		//	String error = "Error while loading recent conections :" + e.getMessage();
+			///logger.error(error, e);
+			v = new Vector<LocalConnection>();
 		}
 		cbConnections = new JComboBox(v);
 		cbConnections.setActionCommand("choose-recent");
@@ -130,9 +131,9 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 	private Collection<LocalConnection> getRecentLocalConnections() throws Exception {
 		ODB odb = null;
 		try {
-			odb = ODBFactory.open(Constant.CONNECT_FILE_NAME);
-			IQuery query = new CriteriaQuery(LocalConnection.class);
-			return odb.getObjects(query);
+			odb = NeoDatis.open(Constant.CONNECT_FILE_NAME);
+			Query query = odb.query(LocalConnection.class);
+			return query.objects();
 		} finally {
 			if (odb != null) {
 				odb.close();
@@ -181,8 +182,12 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 			lc.setUser(tfUserName.getText());
 			lc.setPassword(tfPassword.getText());
 		}
-		if (!existConnection(tfFileName.getText(), tfUserName.getName())) {
-			saveConnection(lc);
+		try{
+			if (!existConnection(tfFileName.getText(), tfUserName.getName())) {
+				saveConnection(lc);
+			}
+		}catch (Exception e) {
+			// TODO: handle exception
 		}
 		logger.info("connecting to " + lc);
 		return lc;
@@ -191,9 +196,9 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 	private void saveConnection(Connection connection) throws Exception {
 		ODB odb = null;
 		try {
-			odb = ODBFactory.open(Constant.CONNECT_FILE_NAME);
+			odb = NeoDatis.open(Constant.CONNECT_FILE_NAME);
 			odb.store(connection);
-			Objects l = odb.getObjects(ConnectConfig.class);
+			Objects l = odb.query(ConnectConfig.class).objects();
 			ConnectConfig cc = null;
 			LocalConnection lc = (LocalConnection) connection;
 			File f = new File(lc.getFileName());
@@ -204,7 +209,7 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 				cc.setLastDirectory(f.getPath());
 
 			} else {
-				cc = (ConnectConfig) l.getFirst();
+				cc = (ConnectConfig) l.first();
 				cc.setLastDirectory(f.getPath());
 			}
 			odb.store(cc);
@@ -217,7 +222,13 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 	}
 
 	private void browseFile() throws Exception {
-		String lastDirectory = getLastDirectory();
+		String lastDirectory = ".";
+		try{
+			lastDirectory = getLastDirectory();
+		}catch (Exception e) {
+		}
+		
+		JOptionPane.showMessageDialog(null, "Choose the directory or file of your database");
 		JFileChooser chooser = null;
 		if (lastDirectory != null) {
 			chooser = new JFileChooser(lastDirectory);
@@ -225,6 +236,8 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 			String userDir = System.getProperty("user.dir");
 			chooser = new JFileChooser(userDir);
 		}
+		//chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+		
 		int returnValue = chooser.showOpenDialog(this);
 		if (returnValue == JFileChooser.APPROVE_OPTION) {
 			File file = chooser.getSelectedFile();
@@ -235,10 +248,9 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 	private boolean existConnection(String fileName, String user) throws Exception {
 		ODB odb = null;
 		try {
-			odb = ODBFactory.open(Constant.CONNECT_FILE_NAME);
-			IQuery query = new CriteriaQuery(LocalConnection.class, Where.and().add(Where.equal("fileName", fileName)).add(
-					Where.equal("user", user)));
-			return !odb.getObjects(query).isEmpty();
+			odb = NeoDatis.open(Constant.CONNECT_FILE_NAME);
+			Query query = odb.query(LocalConnection.class, W.equal("fileName", fileName).and(W.equal("user", user)));
+			return !query.objects().isEmpty();
 		} finally {
 			if (odb != null) {
 				odb.close();
@@ -249,12 +261,12 @@ public class LocalConnectionPanel extends ConnectionPanel implements ActionListe
 	private String getLastDirectory() throws Exception {
 		ODB odb = null;
 		try {
-			odb = ODBFactory.open(Constant.CONNECT_FILE_NAME);
-			Objects l = odb.getObjects(ConnectConfig.class);
+			odb = NeoDatis.open(Constant.CONNECT_FILE_NAME);
+			Objects l = odb.query(ConnectConfig.class).objects();
 			if (l.isEmpty()) {
 				return null;
 			}
-			ConnectConfig cc = (ConnectConfig) l.getFirst();
+			ConnectConfig cc = (ConnectConfig) l.first();
 			return cc.getLastDirectory();
 		} finally {
 			if (odb != null) {

@@ -1,10 +1,12 @@
-<project default="main" basedir=".." name="NeoDatis - ODB 1.9">
+<project default="main" basedir=".." name="NeoDatis V2">
 
 	<property name="src" value="src" />
-	<property name="src-agent" value="src-agent" />
+	<property name="src-jdbm" value="src-jdbm" />
+	<property name="src-plugins" value="src-plugins" />
 	<property name="src-gui" value="src-gui" />
 	<property name="src-xml" value="src-xml" />
 	<property name="src-remote" value="src-remote" />
+	<property name="src-ant" value="src-ant" />
 	<property name="test" value="test" />
 	<property name="lib" value="lib" />
 	<property name="dist" value="dist" />
@@ -27,7 +29,7 @@
 	</path>
 
 	<!-- Main -->
-	<target name="main" depends="jar,end,docAndSrc,jar-junits,buildMavenBundle" />
+	<target name="main" depends="jar,end,docAndSrc" />
 
 
 	<target name="end">
@@ -63,23 +65,26 @@
 		<echo>Build Number : ${build.number}</echo>
 		<echo>Version Number : ${neodatis.odb.release}</echo>
 
-		<copy file="template/release-template.txt" tofile="src/org/neodatis/odb/core/Release.java" overwrite="true" />
-		<replace file="src/org/neodatis/odb/core/Release.java" token="build" value="${build.number}" />
-		<replace file="src/org/neodatis/odb/core/Release.java" token="date" value="${build.time}" />
-		<replace file="src/org/neodatis/odb/core/Release.java" token="release-number" value="${neodatis.odb.release}" />
+		<copy file="template/release-template.txt" tofile="src/org/neodatis/odb/Release.java" overwrite="true" />
+		<replace file="src/org/neodatis/odb/Release.java" token="build" value="${build.number}" />
+		<replace file="src/org/neodatis/odb/Release.java" token="date" value="${build.time}" />
+		<replace file="src/org/neodatis/odb/Release.java" token="release-number" value="${neodatis.odb.release}" />
 
 	</target>
 
 	<target name="compile" depends="init">
+		<javac srcdir="${src-jdbm}" destdir="${bin}" classpathref="compile.classpath" debug="true" source="1.5" />
+		<javac srcdir="${src-plugins}" destdir="${bin}" classpathref="compile.classpath" debug="true" source="1.5" />
 		<javac srcdir="${src}" destdir="${bin}" classpathref="compile.classpath" debug="true" source="1.5" />
 		<javac srcdir="${src-xml}" destdir="${bin}" classpathref="compile.classpath" debug="true" />
 		<javac srcdir="${src-gui}" destdir="${bin}" classpathref="compile.classpath" debug="true" />
+		<javac srcdir="${src-ant}" destdir="${bin}" classpathref="compile.classpath" debug="true" />
 	</target>
 
 	<target name="docAndSrc">
 		<javadoc destdir="javadoc" packagenames="org.*" doctitle="NeoDatis ODB - Object DataBase" sourcepath="${src}" package="true" windowtitle="NeoDatis ODB" />
-		<jar destfile="dist/neodatis-odb-${neodatis.odb.release}.${build.number}-javadoc.jar" basedir="javadoc" />
-		<jar destfile="dist/neodatis-odb-${neodatis.odb.release}.${build.number}-sources.jar" basedir="." includes="src/**,src-xml/**,src-gui/**,src-tool/**,ant/**,template/**,test/**,lib/**,build.number,manifest/*,src-agent/**,maven/**" />
+		<jar destfile="dist/odb-javadoc.jar" basedir="javadoc" />
+		<jar destfile="dist/src.jar" basedir="." includes="src/**,src-xml/**,src-gui/**,src-tool/**,ant/**,src-ant,template/**,test/**,lib/**,build.number,manifest/*,src-jdbm/**" />
 	</target>
 
 	<target name="jar-junits" depends="init">
@@ -93,11 +98,22 @@
 		<copy todir="${bin}/img">
 			<fileset dir="${src-gui}/img" />
 		</copy>
+
+		<manifest file="manifest/MANIFEST.MF">
+			<attribute name="Built-By" value="NeoDatis team" />
+			<attribute name="Main-Class" value="org.neodatis.odb.gui.ODBExplorerMain" />
+			<attribute name="Implementation-Version" value="${neodatis.odb.release}-${build.number}" />
+			<attribute name="Built-Date" value="${build.time}" />
+		</manifest>
 		<copy tofile="${bin}/build.number" file="build.number.now" />
 		<jar destfile="${dist}/neodatis-odb.jar" basedir="${bin}" index="true" manifest="manifest/MANIFEST.MF" excludes="org/neodatis/odb/remote/**,**/*Mock*/**" compress="yes" />
 		<jar destfile="${dist}/neodatis-odb-rt.jar" basedir="${bin}" index="true" manifest="manifest/MANIFEST.MF" excludes="org/neodatis/odb/remote/**,org/neodatis/odb/gui/**,**/*Mock*/**,org/neodatis/tool/DisplayUtility.class,org/neodatis/tool/Monitor.class" compress="yes" />
 		<jar destfile="${dist}/neodatis-odb-rt-lite.jar" basedir="${bin}" index="true" manifest="manifest/MANIFEST.MF" excludes="org/neodatis/odb/remote/**,org/neodatis/odb/gui/**,org/neodatis/odb/xml/**,org/neodatis/odb/core/server/**,org/neodatis/odb/core/trigger/**,**/*Mock*/**,org/neodatis/tool/mutex/**,org/neodatis/tool/DisplayUtility.class,**/*Server*/**,org/neodatis/tool/Monitor.class" compress="yes" />
 		<jar destfile="${dist}/neodatis-odb-gui.jar" basedir="${bin}" index="true" manifest="manifest/MANIFEST.MF" includes="org/neodatis/odb/gui/**,img/**" compress="yes" />
+		
+		<!-- Checksums-->
+		<checksum file="${dist}/neodatis-odb.jar" fileext="md5"/>
+		<checksum file="${dist}/neodatis-odb.jar" algorithm="SHA1" fileext="sha1"/>
 	</target>
 	<!-- ================================= 
           target: name              
@@ -199,47 +215,15 @@
 		</concat>
 
 	</target>
-	<target name="share">
+	<target name="shareAll" depends="share1,share2,share3"/>
+	<target name="share1">
 		<copy todir="${share.directory.1}" file="dist/neodatis-odb.jar" verbose="true" />
-		<copy todir="${share.directory.2}" file="dist/neodatis-odb.jar" verbose="true" />
-		<copy todir="${share.directory.3}" file="dist/neodatis-odb.jar" verbose="true" />
-		<copy todir="${share.directory.4}" file="dist/neodatis-odb.jar" verbose="true" />
-		
 	</target>
-	
-	<target name="buildMavenBundle">
-		<!--
-		pom.xml
-		neodatis-odb-1.0.jar (or whatever artifact is referred to in the pom.xml)
-		neodatis-odb-1.0-sources.jar (optional, jar containing java sources)
-		neodatis-odb-1.0-javadoc.jar (optional, jar containing javadocs)
-		
-		put this in ${pom.artifactId}-${pom.currentVersion}-bundle.jar
-		-->
-		<delete dir="${bin}/maven"/>
-		<mkdir dir="${bin}/maven"/>
-		<copy file="maven/pom.xml" tofile="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}.pom"/>
-		<replace file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}.pom" token="neodatis-odb-version" value="${neodatis.odb.release}.${build.number}" summary="true"/>
-		<copy file="dist/neodatis-odb.jar" tofile="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}.jar"/>
-		<copy file="dist/neodatis-odb-${neodatis.odb.release}.${build.number}-javadoc.jar" todir="${bin}/maven" verbose="true"/>
-		<copy file="dist/neodatis-odb-${neodatis.odb.release}.${build.number}-sources.jar" todir="${bin}/maven" verbose="true"/>
-		
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}.pom" algorithm="MD5" fileext=".md5"/>
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}.pom" algorithm="SHA1" fileext=".sha1"/>
-
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}.jar" algorithm="MD5" fileext=".md5"/>
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}.jar" algorithm="SHA1" fileext=".sha1"/>
-
-		
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}-javadoc.jar" algorithm="MD5" fileext=".md5"/>
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}-javadoc.jar" algorithm="SHA1" fileext=".sha1"/>
-
-
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}-sources.jar" algorithm="MD5" fileext=".md5"/>
-		<checksum file="${bin}/maven/neodatis-odb-${neodatis.odb.release}.${build.number}-sources.jar" algorithm="SHA1" fileext=".sha1"/>
-		
-		<jar destfile="dist/neodatis-odb-${neodatis.odb.release}.${build.number}-bundle.jar" basedir="${bin}/maven/" ></jar>
-	
+	<target name="share2">
+		<copy todir="${share.directory.2}" file="dist/neodatis-odb.jar" verbose="true" />
+	</target>
+	<target name="share3">
+		<copy todir="${share.directory.3}" file="dist/neodatis-odb.jar" verbose="true" />
 	</target>
 
 </project>

@@ -3,7 +3,7 @@ package org.neodatis.tool.wrappers.net;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.core.NeoDatisError;
 
 
@@ -19,7 +19,7 @@ public class NeoDatisIpAddress {
 				String ip = InetAddress.getByName(hostName).getHostAddress();
 				return ip;
 			} catch (UnknownHostException e) {
-				throw new ODBRuntimeException(NeoDatisError.ERROR_WHILE_GETTING_IP_ADDRESS.addParameter(hostName));
+				throw new NeoDatisRuntimeException(NeoDatisError.ERROR_WHILE_GETTING_IP_ADDRESS.addParameter(hostName),e);
 			}
 		}
 

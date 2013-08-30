@@ -38,6 +38,7 @@ public class XmlTags {
 
 	public static final String ATTRIBUTE_NAME = "name";
 	public static final String ATTRIBUTE_TYPE = "type";
+	
 
 	public static final String ATTRIBUTE_ID = "id";
 	public static final String ATTRIBUTE_OID = "oid";
@@ -46,6 +47,7 @@ public class XmlTags {
 	public static final String ATTRIBUTE_UPDATE_DATE = "update-date";
 	public static final String ATTRIBUTE_MAX_OID = "max-oid";
 	public static final String ATTRIBUTE_VALUE = "value";
+	public static final String ATTRIBUTE_VALUE_IS_NULL = "value-is-null";
 	public static final String ATTRIBUTE_CLASS_ID = "class-id";
 	public static final String ATTRIBUTE_COLLECTION = "collection";
 	public static final String ATTRIBUTE_MAP = "map";
@@ -53,6 +55,7 @@ public class XmlTags {
 	public static final String ATTRIBUTE_NULL = "is-null";
 	public static final String ATTRIBUTE_DELETED = "is-deleted";
 	public static final String ATTRIBUTE_EXPORT_DATE = "export-date-time";
+	public static final String ATTRIBUTE_OID_GENERATOR = "oid-generator";
 	public static final String ATTRIBUTE_REAL_CLASS_NAME = "native-class-name";
 	public static final String ATTRIBUTE_ARRAY_OF = "array-of";
 	public static final String ATTRIBUTE_IS_ENUM = "is-enum";
@@ -61,9 +64,13 @@ public class XmlTags {
 	public static final String ATTRIBUTE_SIZE = "size";
 	public static final String ATTRIBUTE_KEY_TYPE = "key-type";
 	public static final String ATTRIBUTE_VALUE_TYPE = "value-type";
-	public static final String ATTRIBUTE_ENUM_CLASS_OID = "enum-class-oid";
 	public static final String ATTRIBUTE_FILE_FORMAT_VERSION = "file-format-version";
-	/** @deprecated */
-	public static final String ATTRIBUTE_PACKAGE_NAME = "package";
+	public static final String ATTRIBUTE_MAX_OBJECT_OID = "max-object-oid";
+	public static final String ATTRIBUTE_MAX_CLASS_OID = "max-class-oid";
+	
+	public static final String VALUE_NATIVE = "native";
+	public static final String VALUE_NON_NATIVE = "non-native";
+	
+	
 
 }

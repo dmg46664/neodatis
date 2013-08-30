@@ -209,7 +209,7 @@ public abstract class AbstractBTree implements IBTree {
 				child.insertKeyAndValue(elementToMoveDown.getKey(), elementToMoveDown.getValue());
 				if (leftSibling.getNbChildren() > leftSibling.getNbKeys()) {
 					// Take the last child of the left sibling and set it the
-					// first child of the 'child' (incoming parameter)
+					// first child of the 'child' (incoming identification)
 					// child.setChildAt(leftSibling.getChildAt(leftSibling.getNbChildren()
 					// - 1, true), 0);
 					child.setChildAt(leftSibling, leftSibling.getNbChildren() - 1, 0, true);
@@ -240,7 +240,7 @@ public abstract class AbstractBTree implements IBTree {
 				child.insertKeyAndValue(elementToMoveDown.getKey(), elementToMoveDown.getValue());
 				if (rightSibling.getNbChildren() > 0) {
 					// Take the first child of the right sibling and set it the
-					// last child of the 'child' (incoming parameter)
+					// last child of the 'child' (incoming identification)
 					child.setChildAt(rightSibling, 0, child.getNbChildren(), true);
 					child.incrementNbChildren();
 				}
@@ -355,35 +355,42 @@ public abstract class AbstractBTree implements IBTree {
 	public void insert(Comparable key, Object value) {
 		// check if root is full
 		if (root.isFull()) {
-			IBTreeNode newRoot = buildNode();
-			IBTreeNode oldRoot = root;
-			newRoot.setChildAt(root, 0);
-			newRoot.setNbChildren(1);
-			root = newRoot;
-			split(newRoot, oldRoot, 0);
-			height++;
-
-			persister.saveNode(oldRoot);
-			// TODO Remove the save of the new root : the save on the btree
-			// should do the save on the new root(after introspector
-			// refactoring)
-			persister.saveNode(newRoot);
-			persister.saveBTree(this);
-
-			BTreeValidator.validateNode(newRoot, true);
+			newRoot();
 		}
-		insertNonFull(root, key, value);
-		size++;
+		boolean increaseSize = insertNonFull(root, key, value);
+		if(increaseSize){
+			size++;
+		}
 		persister.saveBTree(this);
 		// Commented by Olivier 05/11/2007
 		// persister.flush();
 	}
+	
+	protected void newRoot(){
+		IBTreeNode newRoot = buildNode();
+		IBTreeNode oldRoot = root;
+		newRoot.setChildAt(root, 0);
+		newRoot.setNbChildren(1);
+		root = newRoot;
+		split(newRoot, oldRoot, 0);
+		height++;
 
-	private void insertNonFull(IBTreeNode node, Comparable key, Object value) {
+		persister.saveNode(oldRoot);
+		// TODO Remove the save of the new root : the save on the btree
+		// should do the save on the new root(after introspector
+		// refactoring)
+		persister.saveNode(newRoot);
+		persister.saveBTree(this);
+
+		BTreeValidator.validateNode(newRoot, true);
+		
+	}
+
+	protected boolean insertNonFull(IBTreeNode node, Comparable key, Object value) {
 		if (node.isLeaf()) {
-			node.insertKeyAndValue(key, value);
+			boolean increaseSize = node.insertKeyAndValue(key, value);
 			persister.saveNode(node);
-			return;
+			return increaseSize;
 		}
 		int position = node.getPositionOfKey(key);// return an index starting
 		// from 1 instead of 0
@@ -392,9 +399,9 @@ public abstract class AbstractBTree implements IBTree {
 		// If position is positive, the key must be inserted in this node
 		if (position >= 0) {
 			realPosition = position - 1;
-			node.insertKeyAndValue(key, value);
+			boolean increaseSize = node.insertKeyAndValue(key, value);
 			persister.saveNode(node);
-			return;
+			return increaseSize;
 		}
 
 		// descend
@@ -406,7 +413,7 @@ public abstract class AbstractBTree implements IBTree {
 				nodeToDescend = node.getChildAt(realPosition + 1, true);
 			}
 		}
-		insertNonFull(nodeToDescend, key, value);
+		return insertNonFull(nodeToDescend, key, value);
 
 	}
 
@@ -512,5 +519,25 @@ public abstract class AbstractBTree implements IBTree {
 			persister.saveNode(node);
 		}
 		return kav;
+	}
+
+	/**
+	 * @param size2
+	 */
+	protected void setSize(long size2) {
+		this.size = size2;
+		
+	}
+	protected void setHeight(int height) {
+		this.height = height;
+		
+	}
+
+	/**
+	 * @param root2
+	 */
+	public void setRoot(IBTreeNode root2) {
+		this.root = root2;
+		
 	}
 }

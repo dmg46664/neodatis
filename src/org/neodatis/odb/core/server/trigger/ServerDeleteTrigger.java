@@ -21,21 +21,40 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.trigger;
 
-import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.ObjectRepresentation;
+import org.neodatis.odb.core.session.ExecutionType;
 import org.neodatis.odb.core.trigger.DeleteTrigger;
 
 public abstract class ServerDeleteTrigger extends DeleteTrigger{
 	
 	
 	
-    public void afterDelete(Object object, OID oid) {
-		afterDelete((ObjectRepresentation) object, oid);
+    public void afterDelete(Object object, ObjectOid oid) {
+    	if(object instanceof ObjectRepresentation){
+    		afterDelete((ObjectRepresentation) object, oid);
+    	}
+		// there is a specific case (when using remote process invocation where server triggers may be called on user objects. This situation must be ignored. 
+		// Check ExecutionType for more details
+
 		
 	}
-	public boolean beforeDelete(Object object, OID oid) {
-		return beforeDelete((ObjectRepresentation)object, oid);
+	public boolean beforeDelete(Object object, ObjectOid oid) {
+		if(object instanceof ObjectRepresentation){
+			return beforeDelete((ObjectRepresentation)object, oid);
+		}
+		// there is a specific case (when using remote process invocation where server triggers may be called on user objects. This situation must be ignored. 
+		// Check ExecutionType for more details
+		return false;
+
 	}
-	public abstract boolean beforeDelete(ObjectRepresentation objectRepresentation,OID oid);
-    public abstract void afterDelete(ObjectRepresentation objectRepresentation,OID oid);
+	public abstract boolean beforeDelete(ObjectRepresentation objectRepresentation,ObjectOid oid);
+    public abstract void afterDelete(ObjectRepresentation objectRepresentation,ObjectOid oid);
+    
+    @Override
+    public int getExecutionType() {
+    	return ExecutionType.SERVER;
+    }
+
+
 }

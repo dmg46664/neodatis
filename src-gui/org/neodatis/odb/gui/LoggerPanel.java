@@ -64,7 +64,7 @@ public class LoggerPanel extends JPanel implements ILogger {
 		String s = ta.getText();
 		ta.setText(s + "\n" + header + "\n" + String.valueOf(object) + ":\n" + OdbString.exceptionToString(throwable, false));
 		ta.setCaretPosition(ta.getText().length());
-		JOptionPane.showMessageDialog(null, header);
+		JOptionPane.showMessageDialog(null, header+"\n"+ throwable.getMessage());//OdbString.exceptionToString(throwable, false));
 	}
 
 	public void info(Object object) {

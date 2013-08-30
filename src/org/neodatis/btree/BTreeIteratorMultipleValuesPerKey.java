@@ -2,7 +2,7 @@ package org.neodatis.btree;
 
 import java.util.List;
 
-import org.neodatis.odb.core.OrderByConstants;
+import org.neodatis.OrderByConstants;
 
 /**
  * An iterator to iterate over NeoDatis BTree that accept more than one value

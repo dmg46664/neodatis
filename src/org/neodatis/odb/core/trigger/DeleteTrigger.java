@@ -21,9 +21,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.trigger;
 
-import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
+import org.neodatis.odb.core.session.ExecutionType;
 
 public abstract class DeleteTrigger extends Trigger{
-    public abstract boolean beforeDelete(Object object,OID oid);
-    public abstract void afterDelete(Object object,OID oid);
+    public abstract boolean beforeDelete(Object object,ObjectOid oid);
+    public abstract void afterDelete(Object object,ObjectOid oid);
+    
+    @Override
+    public int getExecutionType() {
+    	return ExecutionType.CLIENT;
+    }
 }

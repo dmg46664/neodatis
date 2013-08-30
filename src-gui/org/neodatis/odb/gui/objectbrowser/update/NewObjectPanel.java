@@ -53,15 +53,14 @@ import org.neodatis.odb.core.layers.layer2.meta.CollectionObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeNullObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ObjectReference;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.layers.layer4.OidGenerator;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.IBrowserContainer;
 import org.neodatis.odb.gui.Messages;
 import org.neodatis.odb.gui.component.GUITool;
 import org.neodatis.odb.gui.objectbrowser.hierarchy.HierarchicObjectBrowserPanel;
 import org.neodatis.odb.gui.objectbrowser.hierarchy.ModalObjectBrowserDialog;
-import org.neodatis.odb.impl.core.layers.layer3.engine.StorageEngineConstant;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
-import org.neodatis.odb.impl.tool.ObjectTool;
+import org.neodatis.odb.tool.ObjectTool;
 import org.neodatis.tool.DLogger;
 import org.neodatis.tool.ILogger;
 import org.neodatis.tool.wrappers.OdbString;
@@ -69,7 +68,7 @@ import org.neodatis.tool.wrappers.map.OdbHashMap;
 
 public class NewObjectPanel extends JPanel implements ActionListener {
 
-	private IStorageEngine storageEngine;
+	private SessionEngine storageEngine;
 
 	private ClassInfo classInfo;
 
@@ -87,7 +86,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 
 	private IBrowserContainer browser;
 
-	public NewObjectPanel(IStorageEngine aStorageEngine, ClassInfo ci, IBrowserContainer aBrowser, ILogger logger) {
+	public NewObjectPanel(SessionEngine aStorageEngine, ClassInfo ci, IBrowserContainer aBrowser, ILogger logger) {
 		this.storageEngine = aStorageEngine;
 		this.classInfo = ci;
 		textFields = new OdbHashMap<ClassAttributeInfo, JTextField>();
@@ -161,7 +160,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 					panel1.add(combo);
 					btChoose = new JButton(Messages.getString("Add an object"));
 					panel1.add(btChoose);
-					btChoose.setActionCommand("browse-add." + cai.getFullClassname());
+					btChoose.setActionCommand("browse-add." + cai.getClassName());
 					btChoose.addActionListener(this);
 					panelLabels.add(panel1);
 					idsTextFieldsForButton.put(btChoose, textField);
@@ -179,7 +178,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 				panel1.add(textField);
 				btChoose = new JButton(Messages.getString("Choose the object"));
 				panel1.add(btChoose);
-				btChoose.setActionCommand("browse-set." + cai.getFullClassname());
+				btChoose.setActionCommand("browse-set." + cai.getClassName());
 				btChoose.addActionListener(this);
 
 				panelLabels.add(panel1);
@@ -220,7 +219,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 
 	private JComboBox buildClassesCombo() {
 		Vector vector = new Vector();
-		Iterator<ClassInfo> iterator = storageEngine.getSession(true).getMetaModel().getAllClasses().iterator();
+		Iterator<ClassInfo> iterator = storageEngine.getSession().getMetaModel().getAllClasses().iterator();
 		ClassInfo ci = null;
 		while (iterator.hasNext()) {
 			ci = (ClassInfo) iterator.next();
@@ -237,7 +236,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 			String className = OdbString.substring(action, tokenSet.length(), action.length());
 			try {
 				OID oid = chooseObject(className);
-				if (oid != StorageEngineConstant.NULL_OBJECT_ID) {
+				if (oid != null) {
 					JTextField idTextField = (JTextField) idsTextFieldsForButton.get(e.getSource());
 					idTextField.setText(String.valueOf(oid));
 				}
@@ -249,7 +248,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 			String className = ((JComboBox) classNames.get(e.getSource())).getSelectedItem().toString();
 			try {
 				OID oid = chooseObject(className);
-				if (oid != StorageEngineConstant.NULL_OBJECT_ID) {
+				if (oid != null) {
 					JTextField idTextField = (JTextField) idsTextFieldsForButton.get(e.getSource());
 					String ids = idTextField.getText();
 					idTextField.setText(ids + (ids.length() > 0 ? "," : "") + String.valueOf(oid));
@@ -274,6 +273,8 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 		Iterator iterator = textFields.keySet().iterator();
 		ClassAttributeInfo cai = null;
 		NonNativeObjectInfo nnoi = new NonNativeObjectInfo(classInfo);
+		OidGenerator oidGenerator = storageEngine.getSession().getOidGenerator();
+		ObjectTool objectTool = new ObjectTool(storageEngine.getSession());
 
 		while (iterator.hasNext()) {
 			cai = (ClassAttributeInfo) iterator.next();
@@ -281,27 +282,28 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 			String value = tfValue.getText();
 			if (cai.isNative()) {
 				if (cai.getAttributeType().isAtomicNative()) {
-					nnoi.setAttributeValue(cai.getId(), ObjectTool.stringToObjectInfo(cai.getAttributeType().getId(), value,
+					nnoi.setAttributeValue(cai.getId(), objectTool.stringToObjectInfo(cai.getAttributeType().getId(), value,
 							ObjectTool.ID_CALLER_IS_ODB_EXPLORER,null));
 				} else {
 					if (cai.getAttributeType().isCollection()) {
 						// Must be array of collection
-						Collection c = new ArrayList();
+						Collection<AbstractObjectInfo> c = new ArrayList<AbstractObjectInfo>();
+						Collection<NonNativeObjectInfo> c2 = new ArrayList<NonNativeObjectInfo>();
 						StringTokenizer tokenizer = new StringTokenizer(value, ",");
 						while (tokenizer.hasMoreElements()) {
-							c.add(new ObjectReference(OIDBuilder.buildObjectOID(tokenizer.nextElement().toString())));
+							c.add(new ObjectReference(oidGenerator.objectOidFromString(tokenizer.nextElement().toString())));
 						}
-						CollectionObjectInfo coi = new CollectionObjectInfo(c);
+						CollectionObjectInfo coi = new CollectionObjectInfo(c,c2);
 						nnoi.setAttributeValue(cai.getId(), coi);
 					}
 					if (cai.getAttributeType().isArray()) {
 						// Must be array of collection
 
 						StringTokenizer tokenizer = new StringTokenizer(value, ",");
-						Object[] objects = new Object[tokenizer.countTokens()];
+						AbstractObjectInfo[] objects = new AbstractObjectInfo[tokenizer.countTokens()];
 						int i = 0;
 						while (tokenizer.hasMoreElements()) {
-							objects[i++] = new ObjectReference(OIDBuilder.buildObjectOID(tokenizer.nextElement().toString()));
+							objects[i++] = new ObjectReference( oidGenerator.objectOidFromString(tokenizer.nextElement().toString()));
 						}
 						ArrayObjectInfo aoi = new ArrayObjectInfo(objects);
 						nnoi.setAttributeValue(cai.getId(), aoi);
@@ -310,9 +312,9 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 				}
 			} else {
 				if (value != null && value.length() > 0) {
-					nnoi.setAttributeValue(cai.getId(), new ObjectReference(OIDBuilder.buildObjectOID(value)));
+					nnoi.setAttributeValue(cai.getId(), new ObjectReference( oidGenerator.objectOidFromString(value)));
 				} else {
-					nnoi.setAttributeValue(cai.getId(), new NonNativeNullObjectInfo(cai.getClassInfo()));
+					nnoi.setAttributeValue(cai.getId(), new NonNativeNullObjectInfo());
 				}
 			}
 		}
@@ -321,7 +323,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 		// OID id =
 		// storageEngine.getObjectWriter().writeNonNativeObjectInfo(StorageEngineConstant.NULL_OBJECT_ID,
 		// nnoi, -1, true,true);
-		OID id = storageEngine.writeObjectInfo(StorageEngineConstant.NULL_OBJECT_ID, nnoi, -1, true);
+		OID id = storageEngine.storeMeta(null, nnoi);
 		btCancel.setEnabled(false);
 		btCreate.setEnabled(false);
 		btCreate.setText(Messages.getString("Object Created : id = " + id));
@@ -329,12 +331,12 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 	}
 
 	private OID chooseObject(String className) throws Exception {
-		Objects<AbstractObjectInfo> l = storageEngine.getObjectInfos(new CriteriaQuery(className), true, -1, -1, false);
+		Objects<AbstractObjectInfo> l = storageEngine.getMetaObjects(storageEngine.criteriaQuery(className));
 		// TODO: Try to avoid copying the list here. TreeModel needs a list
 		// because it uses get(index) and indexOf(Object)
 		List<AbstractObjectInfo> list = new ArrayList<AbstractObjectInfo>(l.size());
 		list.addAll(l);
-		ClassInfo classInfoToBrowse = storageEngine.getSession(true).getMetaModel().getClassInfo(className, true);
+		ClassInfo classInfoToBrowse = storageEngine.getSession().getMetaModel().getClassInfo(className, true);
 		HierarchicObjectBrowserPanel panel = new HierarchicObjectBrowserPanel(browser, storageEngine, classInfoToBrowse, list, false,
 				logger);
 		ModalObjectBrowserDialog modalBrowser = new ModalObjectBrowserDialog(panel);
@@ -343,7 +345,7 @@ public class NewObjectPanel extends JPanel implements ActionListener {
 		if (modalBrowser.objectHasBeenChoosen()) {
 			return panel.getSelectedOid();
 		}
-		return StorageEngineConstant.NULL_OBJECT_ID;
+		return null;
 	}
 
 }

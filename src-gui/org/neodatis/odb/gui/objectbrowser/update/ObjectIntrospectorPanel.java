@@ -55,17 +55,15 @@ import org.neodatis.odb.core.layers.layer2.meta.NonNativeNullObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NullNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ObjectReference;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
-import org.neodatis.odb.core.server.layers.layer2.meta.ClientNonNativeObjectInfo;
+import org.neodatis.odb.core.layers.layer4.OidGenerator;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.GUIConstant;
 import org.neodatis.odb.gui.IBrowserContainer;
 import org.neodatis.odb.gui.Messages;
 import org.neodatis.odb.gui.component.GUITool;
 import org.neodatis.odb.gui.objectbrowser.hierarchy.HierarchicObjectBrowserPanel;
 import org.neodatis.odb.gui.objectbrowser.hierarchy.ModalObjectBrowserDialog;
-import org.neodatis.odb.impl.core.layers.layer3.engine.StorageEngineConstant;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
-import org.neodatis.odb.impl.tool.ObjectTool;
+import org.neodatis.odb.tool.ObjectTool;
 import org.neodatis.tool.DLogger;
 import org.neodatis.tool.ILogger;
 import org.neodatis.tool.wrappers.OdbString;
@@ -73,7 +71,7 @@ import org.neodatis.tool.wrappers.map.OdbHashMap;
 
 public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 
-	private IStorageEngine storageEngine;
+	private SessionEngine storageEngine;
 	private ClassInfo classInfo;
 
 	private JButton btCreate;
@@ -86,7 +84,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 	private NonNativeObjectInfo nnoi;
 	private ILogger logger;
 
-	public ObjectIntrospectorPanel(IStorageEngine aStorageEngine, ClassInfo ci, IBrowserContainer aBrowser, NonNativeObjectInfo nnoi,
+	public ObjectIntrospectorPanel(SessionEngine aStorageEngine, ClassInfo ci, IBrowserContainer aBrowser, NonNativeObjectInfo nnoi,
 			ILogger logger) {
 		this.storageEngine = aStorageEngine;
 		this.classInfo = ci;
@@ -134,6 +132,8 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 		Dimension labelDimension = new Dimension(80, 20);
 		JLabel label = null;
 		AbstractObjectInfo aoi = null;
+		ObjectTool objectTool = new ObjectTool(storageEngine.getSession());
+		
 		for (int i = 0; i < nbAttributes; i++) {
 			cai = classInfo.getAttributeInfo(i);
 			aoi = nnoi.getAttributeValueFromId(cai.getId());
@@ -154,7 +154,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 					textField = new JTextField(20);
 
 					if (nnoi != null && !aoi.isNull() && aoi.isAtomicNativeObject()) {
-						textField.setText(ObjectTool.atomicNativeObjectToString((AtomicNativeObjectInfo) aoi,
+						textField.setText(objectTool.atomicNativeObjectToString((AtomicNativeObjectInfo) aoi,
 								ObjectTool.ID_CALLER_IS_ODB_EXPLORER));
 					} else {
 						textField.setText(GUIConstant.NULL_OBJECT_LABEL);
@@ -174,7 +174,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 					panel1.add(combo);
 					btChoose = new JButton(Messages.getString("Add an object"));
 					panel1.add(btChoose);
-					btChoose.setActionCommand("browse-add." + cai.getFullClassname());
+					btChoose.setActionCommand("browse-add." + cai.getClassName());
 					btChoose.addActionListener(this);
 					panelLabels.add(panel1);
 					idsTextFieldsForButton.put(btChoose, textField);
@@ -198,7 +198,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 				panel1.add(textField);
 				btChoose = new JButton(Messages.getString("Choose the object"));
 				panel1.add(btChoose);
-				btChoose.setActionCommand("browse-set." + cai.getFullClassname());
+				btChoose.setActionCommand("browse-set." + cai.getClassName());
 				btChoose.addActionListener(this);
 
 				panelLabels.add(panel1);
@@ -235,7 +235,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 
 	private JComboBox buildClassesCombo() {
 		Vector vector = new Vector();
-		Iterator iterator = storageEngine.getSession(true).getMetaModel().getAllClasses().iterator();
+		Iterator iterator = storageEngine.getSession().getMetaModel().getAllClasses().iterator();
 		ClassInfo ci = null;
 		while (iterator.hasNext()) {
 			ci = (ClassInfo) iterator.next();
@@ -252,7 +252,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 			String className = OdbString.substring(action, tokenSet.length(), action.length());
 			try {
 				OID oid = chooseObject(className);
-				if (oid != StorageEngineConstant.NULL_OBJECT_ID) {
+				if (oid != null) {
 					JTextField idTextField = (JTextField) idsTextFieldsForButton.get(e.getSource());
 					idTextField.setText(String.valueOf(oid));
 				}
@@ -264,7 +264,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 			String className = ((JComboBox) classNames.get(e.getSource())).getSelectedItem().toString();
 			try {
 				OID oid = chooseObject(className);
-				if (oid != StorageEngineConstant.NULL_OBJECT_ID) {
+				if (oid != null) {
 					JTextField idTextField = (JTextField) idsTextFieldsForButton.get(e.getSource());
 					String ids = idTextField.getText();
 					idTextField.setText(ids + (ids.length() > 0 ? "," : "") + String.valueOf(oid));
@@ -293,14 +293,15 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 		Iterator iterator = textFields.keySet().iterator();
 		ClassAttributeInfo cai = null;
 		NonNativeObjectInfo newNnoi = null;
-		if(storageEngine.isLocal()){
+		if(storageEngine.getSession().isLocal()){
 			newNnoi = new NonNativeObjectInfo(classInfo);	
 		}else{
-			newNnoi = new ClientNonNativeObjectInfo(classInfo);
+			//newNnoi = new ClientNonNativeObjectInfo(classInfo);
 		}
 		
+		ObjectTool objectTool = new ObjectTool(storageEngine.getSession());
+		OidGenerator oidGenerator = storageEngine.getSession().getOidGenerator();
 		newNnoi.setOid(nnoi.getOid());
-		newNnoi.setPosition(nnoi.getPosition());
 
 		while (iterator.hasNext()) {
 			cai = (ClassAttributeInfo) iterator.next();
@@ -320,27 +321,30 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 				if (value.equals(GUIConstant.NULL_OBJECT_LABEL)) {
 					newNnoi.setAttributeValue(cai.getId(), new NullNativeObjectInfo(cai.getAttributeType()));
 				} else if (cai.getAttributeType().isAtomicNative()) {
-					newNnoi.setAttributeValue(cai.getId(), ObjectTool.stringToObjectInfo(cai.getAttributeType().getId(), value,
+					newNnoi.setAttributeValue(cai.getId(), objectTool.stringToObjectInfo(cai.getAttributeType().getId(), value,
 							ObjectTool.ID_CALLER_IS_ODB_EXPLORER,null));
 				} else {
 					if (cai.getAttributeType().isCollection()) {
 						// Must be array of collection
-						Collection c = new ArrayList();
+						Collection<AbstractObjectInfo> c = new ArrayList<AbstractObjectInfo>();
+						Collection<NonNativeObjectInfo> c2 = new ArrayList<NonNativeObjectInfo>();
 						StringTokenizer tokenizer = new StringTokenizer(value, ",");
 						while (tokenizer.hasMoreElements()) {
-							c.add(new ObjectReference(OIDBuilder.buildObjectOID(tokenizer.nextElement().toString())));
+							ObjectReference or = new ObjectReference( oidGenerator.objectOidFromString(tokenizer.nextElement().toString()));
+							c.add(or);
+							c2.add(or);
 						}
-						CollectionObjectInfo coi = new CollectionObjectInfo(c);
+						CollectionObjectInfo coi = new CollectionObjectInfo(c,c2);
 						newNnoi.setAttributeValue(cai.getId(), coi);
 					}
 					if (cai.getAttributeType().isArray()) {
 						// Must be array of collection
 
 						StringTokenizer tokenizer = new StringTokenizer(value, ",");
-						Object[] objects = new Object[tokenizer.countTokens()];
+						AbstractObjectInfo[] objects = new AbstractObjectInfo[tokenizer.countTokens()];
 						int i = 0;
 						while (tokenizer.hasMoreElements()) {
-							objects[i++] = new ObjectReference(OIDBuilder.buildObjectOID(tokenizer.nextElement().toString()));
+							objects[i++] = new ObjectReference( oidGenerator.objectOidFromString(tokenizer.nextElement().toString()));
 						}
 						ArrayObjectInfo aoi = new ArrayObjectInfo(objects);
 						newNnoi.setAttributeValue(cai.getId(), aoi);
@@ -349,14 +353,14 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 				}
 			} else {
 				if (value != null && value.length() > 0) {
-					newNnoi.setAttributeValue(cai.getId(), new ObjectReference(OIDBuilder.buildObjectOID(value)));
+					newNnoi.setAttributeValue(cai.getId(), new ObjectReference( oidGenerator.objectOidFromString(value)));
 				} else {
-					newNnoi.setAttributeValue(cai.getId(), new NonNativeNullObjectInfo(cai.getClassInfo()));
+					newNnoi.setAttributeValue(cai.getId(), new NonNativeNullObjectInfo());
 				}
 			}
 		}
 		DLogger.info("Updating object:" + newNnoi);
-		OID id = storageEngine.updateObject(newNnoi, false);
+		OID id = storageEngine.storeMeta(newNnoi.getOid(), newNnoi);
 		btCancel.setEnabled(false);
 		btCreate.setEnabled(false);
 		btCreate.setText(Messages.getString("Object updated : id = " + id));
@@ -364,12 +368,12 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 	}
 
 	private OID chooseObject(String className) throws Exception {
-		Objects l = storageEngine.getObjectInfos(new CriteriaQuery(className), true, -1, -1, false);
+		Objects l = storageEngine.getMetaObjects(storageEngine.criteriaQuery(className));
 		// TODO: Try to avoid copying the list here. TreeModel needs a list
 		// because it uses get(index) and indexOf(Object)
 		List list = new ArrayList(l.size());
 		list.addAll(l);
-		ClassInfo classInfoToBrowse = storageEngine.getSession(true).getMetaModel().getClassInfo(className, true);
+		ClassInfo classInfoToBrowse = storageEngine.getSession().getMetaModel().getClassInfo(className, true);
 		HierarchicObjectBrowserPanel panel = new HierarchicObjectBrowserPanel(browser, storageEngine, classInfoToBrowse, list, false,
 				logger);
 		ModalObjectBrowserDialog modalBrowser = new ModalObjectBrowserDialog(panel);
@@ -378,7 +382,7 @@ public class ObjectIntrospectorPanel extends JPanel implements ActionListener {
 		if (modalBrowser.objectHasBeenChoosen()) {
 			return panel.getSelectedOid();
 		}
-		return StorageEngineConstant.NULL_OBJECT_ID;
+		return null;
 	}
 
 }

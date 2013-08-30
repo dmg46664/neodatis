@@ -29,6 +29,7 @@ import java.util.Map;
 
 import org.neodatis.odb.core.layers.layer2.meta.ClassAttributeInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
+import org.neodatis.odb.core.layers.layer2.meta.MetaModel;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeNullObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NullNativeObjectInfo;
@@ -44,11 +45,11 @@ import org.neodatis.tool.wrappers.map.OdbHashMap;
  */
 public class ObjectInfoUtil {
 
-	public static List buildAttributeNameList(ClassInfo ci) {
-		return buildAttributeNameList(null, ci, null, null);
+	public static List buildAttributeNameList(MetaModel metaModel, ClassInfo ci) {
+		return buildAttributeNameList(metaModel, null, ci, null, null);
 	}
 
-	private static List buildAttributeNameList(String attributeName, ClassInfo ci, String base, Map objectsAlreadyVisited) {
+	private static List buildAttributeNameList(MetaModel metaModel, String attributeName, ClassInfo ci, String base, Map objectsAlreadyVisited) {
 		List result = new ArrayList();
 		boolean firstTime = objectsAlreadyVisited == null;
 		if (objectsAlreadyVisited == null) {
@@ -77,13 +78,14 @@ public class ObjectInfoUtil {
 				String localAttributeName = (baseClassName.length() == 0 ? "" : baseClassName + ".") + cai.getName();
 				result.add(localAttributeName);
 			} else {
-				result.addAll(buildAttributeNameList(cai.getName(), cai.getClassInfo(), baseClassName, objectsAlreadyVisited));
+				ClassInfo attributeCi = metaModel.getClassInfo(cai.getClassName(), true); 
+				result.addAll(buildAttributeNameList(metaModel, cai.getName(), attributeCi, baseClassName, objectsAlreadyVisited));
 			}
 		}
 		return result;
 	}
 
-	private static List buildAttributeTypeList(ClassInfo ci, String base, Map objectsAlreadyVisited) {
+	private static List buildAttributeTypeList(MetaModel metaModel, ClassInfo ci, String base, Map objectsAlreadyVisited) {
 		List result = new ArrayList();
 		boolean firstTime = objectsAlreadyVisited == null;
 		if (objectsAlreadyVisited == null) {
@@ -112,17 +114,18 @@ public class ObjectInfoUtil {
 				String attributeName = (baseClassName.length() == 0 ? "" : baseClassName + ".") + cai.getName();
 				result.add(attributeName);
 			} else {
-				result.addAll(buildAttributeNameList(cai.getName(), cai.getClassInfo(), baseClassName, objectsAlreadyVisited));
+				ClassInfo attributeCi = metaModel.getClassInfo(cai.getClassName(), true);
+				result.addAll(buildAttributeNameList(metaModel, cai.getName(), attributeCi, baseClassName, objectsAlreadyVisited));
 			}
 		}
 		return result;
 	}
 
-	public static List buildValueList(ClassInfo ci, Collection list) {
-		return buildValueList(ci, list, null);
+	public static List buildValueList(MetaModel metaModel, ClassInfo ci, Collection list) {
+		return buildValueList(metaModel, ci, list, null);
 	}
 
-	private static List buildValueList(ClassInfo ci, Collection list, Map objectsAlreadyVisited) {
+	private static List buildValueList(MetaModel metaModel, ClassInfo ci, Collection list, Map objectsAlreadyVisited) {
 		List result = new ArrayList();
 		List oneLine = null;
 		int nbLines = list.size();
@@ -149,34 +152,34 @@ public class ObjectInfoUtil {
 				NonNativeObjectInfo nnoi = (NonNativeObjectInfo) element;
 				oneLine = new ArrayList();
 
-				if (nnoi == null || nnoi.isNull()) {
-					oneLine.addAll(nullNonNativeObject(ci, null));
+				if (nnoi == null) {
+					oneLine.addAll(nullNonNativeObject(metaModel, ci, null));
 					continue;
 				}
 				// For each attribute of the non native object
 				for (int j = 0; j < nnoi.getAttributeValues().length; j++) {
 					Object object = nnoi.getAttributeValues()[j];
 					if (objectsAlreadyVisited.get(object) != null) {
-						oneLine.addAll(manageNullOrRecursiveObjectInfo(nnoi.getClassInfo().getAttributeInfo(j), "@"));
+						oneLine.addAll(manageNullOrRecursiveObjectInfo(metaModel, nnoi.getClassInfo().getAttributeInfo(j), "@"));
 						continue;
 					}
 					objectsAlreadyVisited.put(object, object);
 					if (object instanceof NonNativeObjectInfo) {
 						NonNativeObjectInfo oi = (NonNativeObjectInfo) object;
 						if (oi instanceof NonNativeNullObjectInfo) {
-							oneLine.addAll(nullNonNativeObject(ci, null));
+							oneLine.addAll(nullNonNativeObject(metaModel, ci, null));
 						} else {
 							if (oi.isDeletedObject()) {
 								oneLine.add("Deleted Object");
 							} else {
 								List l = Arrays.asList(oi.getAttributeValues());
 								otherMap = new OdbHashMap(objectsAlreadyVisited);
-								oneLine.addAll(buildValueList(oi.getClassInfo(), l, objectsAlreadyVisited));
+								oneLine.addAll(buildValueList(metaModel, oi.getClassInfo(), l, objectsAlreadyVisited));
 							}
 						}
 					} else {
 						if (object instanceof NonNativeNullObjectInfo) {
-							oneLine.addAll(manageNullOrRecursiveObjectInfo(nnoi.getClassInfo().getAttributeInfo(j), "null"));
+							oneLine.addAll(manageNullOrRecursiveObjectInfo(metaModel, nnoi.getClassInfo().getAttributeInfo(j), "null"));
 						} else {
 							if (object == null) {
 								oneLine.add(null);
@@ -184,7 +187,7 @@ public class ObjectInfoUtil {
 								ODBType type = ODBType.getFromClass(object.getClass());
 								if (type.isCollection()) {
 									Collection l = (Collection) object;
-									oneLine.add("[" + l.size() + "]:" + buildValueList(null, l, objectsAlreadyVisited));
+									oneLine.add("[" + l.size() + "]:" + buildValueList(metaModel, null, l, objectsAlreadyVisited));
 								} else {
 									oneLine.add(object);
 								}
@@ -203,12 +206,12 @@ public class ObjectInfoUtil {
 					if (type.isCollection()) {
 
 						Collection l = (Collection) element;
-						result.add("[" + l.size() + "]:" + buildValueList(null, l, objectsAlreadyVisited));
+						result.add("[" + l.size() + "]:" + buildValueList(metaModel, null, l, objectsAlreadyVisited));
 					} else {
 
 						if (element instanceof NonNativeNullObjectInfo) {
 							if (ci != null) {
-								result.addAll(manageNullOrRecursiveObjectInfo(ci.getAttributeInfo(i), "null"));
+								result.addAll(manageNullOrRecursiveObjectInfo(metaModel ,ci.getAttributeInfo(i), "null"));
 							} else {
 								result.add(null);
 							}
@@ -225,7 +228,7 @@ public class ObjectInfoUtil {
 		return result;
 	}
 
-	private static Collection nullNonNativeObject(ClassInfo ci, Map alreadySet) {
+	private static Collection nullNonNativeObject(MetaModel metaModel, ClassInfo ci, Map alreadySet) {
 		ArrayList l = new ArrayList();
 		if (alreadySet == null) {
 			alreadySet = new OdbHashMap();
@@ -242,24 +245,26 @@ public class ObjectInfoUtil {
 					l.add("<-");
 				} else {
 					alreadySet.put(attributeId, attributeId);
-					l.addAll(nullNonNativeObject(cai.getClassInfo(), alreadySet));
+					ClassInfo attributeCi = metaModel.getClassInfo(cai.getClassName(), true);
+					l.addAll(nullNonNativeObject(metaModel, attributeCi, alreadySet));
 				}
 			}
 		}
 		return l;
 	}
 
-	private static List manageNullOrRecursiveObjectInfo(ClassAttributeInfo cai, String item) {
+	private static List manageNullOrRecursiveObjectInfo(MetaModel metaModel, ClassAttributeInfo cai, String item) {
 		List list = new ArrayList();
 		// the object is null
 		// get the type of the object
 		if (cai.getAttributeType().isNative()) {
 			list.add(new NullNativeObjectInfo(cai.getAttributeType()));
 		} else {
+			ClassInfo ci = metaModel.getClassInfo(cai.getClassName(), true);
 			// The object is null and can have more than one attribute, we must
 			// insert
 			// one null per attribute for flat mode
-			int numberOfNullsToInsert = cai.getClassInfo().getAttributes().size();
+			int numberOfNullsToInsert = ci.getAttributes().size();
 			for (int k = 0; k < numberOfNullsToInsert; k++) {
 				list.add(item);
 			}

@@ -24,14 +24,17 @@ package org.neodatis.tool.wrappers;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Date;
 
 
 /**
- * @sharpen.ignore
  * @author olivier
  *
  */
 public class OdbString {
+	public static OdbDateFormat format = new OdbDateFormat("dd/MM/yyyy HH:mm:ss:SSS");
+	
+	
 	public static String[] split(String source, String separators){
 		return source.split(separators);
 	}
@@ -150,6 +153,13 @@ public class OdbString {
 	}
 	public static boolean matches(String regExp, String value){
 		return value.matches(regExp);
+	}
+
+	public static String dateToString(Date dateTime) {
+		if(dateTime==null){
+			return "null";
+		}
+		return format.format(dateTime);
 	}
 
 }

@@ -7,12 +7,14 @@ import org.neodatis.btree.exception.BTreeException;
 public class InMemoryBTreeNodeMultipleValuesPerKey extends BTreeNodeMultipleValuesPerKey {
 	protected static int nextId = 1;
 	protected  Integer id;
+	
+	protected IBTreeNode[] children;
+	protected IBTreeNode parent;
+	
 	public InMemoryBTreeNodeMultipleValuesPerKey(IBTree btree) {
 		super(btree);
 		id = new Integer(nextId++);
 	}
-	protected IBTreeNode[] children;
-	protected IBTreeNode parent;
 	
 	public IBTreeNode getChildAt(int index, boolean throwExceptionIfNotExist) {
 		if(children[index]==null&&throwExceptionIfNotExist){
@@ -74,11 +76,9 @@ public class InMemoryBTreeNodeMultipleValuesPerKey extends BTreeNodeMultipleValu
 	public Object getParentId() {
 		return id;
 	}
-	/* (non-Javadoc)
-	 * @see org.neodatis.btree.IBTreeNode#getValueAsObjectAt(int)
-	 */
 	public Object getValueAsObjectAt(int index) {
 		return getValueAt(index);
 	}
 
+	
 }

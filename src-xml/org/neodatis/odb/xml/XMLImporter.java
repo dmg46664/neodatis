@@ -20,38 +20,40 @@
  */
 package org.neodatis.odb.xml;
 
-import java.io.IOException;
+import java.io.File;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import javax.xml.parsers.SAXParserFactory;
 
+import org.neodatis.odb.ClassOid;
+import org.neodatis.odb.NeoDatis;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.ODB;
-import org.neodatis.odb.ODBRuntimeException;
-import org.neodatis.odb.OID;
-import org.neodatis.odb.OdbConfiguration;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.core.NeoDatisError;
 import org.neodatis.odb.core.layers.layer2.meta.AbstractObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ArrayObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassAttributeInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
 import org.neodatis.odb.core.layers.layer2.meta.CollectionObjectInfo;
-import org.neodatis.odb.core.layers.layer2.meta.EnumNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.MapObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.MetaModel;
+import org.neodatis.odb.core.layers.layer2.meta.MetaModelImpl;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeNullObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NullNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ODBType;
 import org.neodatis.odb.core.layers.layer2.meta.ObjectReference;
-import org.neodatis.odb.core.layers.layer2.meta.SessionMetaModel;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
-import org.neodatis.odb.core.oid.OIDFactory;
-import org.neodatis.odb.impl.core.layers.layer3.engine.Dummy;
-import org.neodatis.odb.impl.core.layers.layer3.engine.StorageEngineConstant;
-import org.neodatis.odb.impl.tool.ObjectTool;
+import org.neodatis.odb.core.layers.layer4.OidGenerator;
+import org.neodatis.odb.core.layers.layer4.engine.Dummy;
+import org.neodatis.odb.core.session.Session;
+import org.neodatis.odb.core.session.SessionEngine;
+import org.neodatis.odb.tool.ObjectTool;
 import org.neodatis.tool.ConsoleLogger;
 import org.neodatis.tool.DLogger;
 import org.neodatis.tool.ILogger;
@@ -86,8 +88,9 @@ public class XMLImporter implements ContentHandler {
 
 	private static final int STATE_ODB = 8;
 
-	private IStorageEngine storageEngine;
+	private SessionEngine sessionEngine;
 
+	private Map<ClassInfo,ObjectOid> maxObjectOids;
 	private MetaModel metaModel;
 
 	private ClassInfo ci;
@@ -100,23 +103,22 @@ public class XMLImporter implements ContentHandler {
 
 	private List objectInfos;
 
-	private OID objectId;
+	private ObjectOid objectId;
 
-	private OID objectClassId;
+	private ClassOid objectClassId;
 
-	private List attributeCollection;
+	private Collection<AbstractObjectInfo> attributeCollection;
+	private Collection<NonNativeObjectInfo> attributeCollectionNonNativeObjects;
 
 	private String realClassName;
 
 	private Map attributeMap;
 
-	private Object[] attributeArray;
+	private AbstractObjectInfo[] attributeArray;
 
 	private int arrayIndex;
 
 	private int currentLevel;
-
-	private OID maxObjectId;
 
 	/**
 	 * The file format version . Information available since 1.9 release, If not
@@ -130,20 +132,25 @@ public class XMLImporter implements ContentHandler {
 	private int nbObjects;
 
 	private ILogger externalLogger;
+	
+	private Session session;
+	private OidGenerator oidGenerator;
+	private ObjectTool objectTool;
 
-	public XMLImporter(IStorageEngine storageEngine) {
-		this.storageEngine = storageEngine;
+	public XMLImporter(SessionEngine storageEngine) {
+		this.sessionEngine = storageEngine;
 	}
 
 	public XMLImporter(ODB odb) {
-		this.storageEngine = Dummy.getEngine(odb);
+		this.sessionEngine = Dummy.getEngine(odb);
 	}
 
 	public void importFile(String directory, String filename) throws Exception {
 
 		String fullFileName = directory + "/" + filename;
+		maxObjectOids = new HashMap<ClassInfo, ObjectOid>();
 
-		info("Importing file " + fullFileName);
+		info("Importing file " + new File(fullFileName).getAbsolutePath());
 		SAXParserFactory factory = SAXParserFactory.newInstance();
 		factory.setNamespaceAware(false);
 
@@ -158,7 +165,7 @@ public class XMLImporter implements ContentHandler {
 		xmlReader.setContentHandler(this);
 		xmlReader.parse(fullFileName);
 
-		storageEngine.commit();
+		sessionEngine.commit();
 		// storageEngine.close();
 
 	}
@@ -184,32 +191,15 @@ public class XMLImporter implements ContentHandler {
 
 			if (tagName.equals(XmlTags.TAG_ODB)) {
 				state = STATE_ODB;
-				try {
-					maxObjectId = OIDFactory.buildObjectOID(Long.parseLong(attributes.getValue(XmlTags.ATTRIBUTE_MAX_OID)));
-					reserveIds(maxObjectId, false);
-				} catch (IOException e) {
-					throw new ODBRuntimeException(NeoDatisError.XML_RESERVING_IDS.addParameter(maxObjectId), e);
-				}
-				// Try to get version
-				try {
-					String version = attributes.getValue(XmlTags.ATTRIBUTE_FILE_FORMAT_VERSION);
-					// If file version tag is not present, we have an old xml
-					// file format
-					if (version == null || version.length() == 0) {
-						fileFormatVersion = StorageEngineConstant.VERSION_8;
-					} else {
-						fileFormatVersion = Integer.parseInt(version);
-					}
-				} catch (Exception e) {
-					// file version tag is not present, we have an old xml file
-					// format
-					fileFormatVersion = StorageEngineConstant.VERSION_8;
-				}
+				String version = attributes.getValue(XmlTags.ATTRIBUTE_FILE_FORMAT_VERSION);
+				// If file version tag is not present, we have an old xml
+				// file format
+				fileFormatVersion = Integer.parseInt(version);
 				return;
 			}
 
 			if (tagName.equals(XmlTags.TAG_METAMODEL)) {
-				metaModel = new SessionMetaModel();
+				metaModel = new MetaModelImpl(NeoDatis.getConfig());
 				info("Importing Meta Model");
 				return;
 			}
@@ -218,30 +208,30 @@ public class XMLImporter implements ContentHandler {
 				state = STATE_CLASS_INFO;
 				String classId = attributes.getValue(XmlTags.ATTRIBUTE_ID);
 				String name = attributes.getValue(XmlTags.ATTRIBUTE_NAME);
-
-				// The IF is to manage old xml version
-				if (fileFormatVersion >= StorageEngineConstant.CURRENT_FILE_FORMAT_VERSION) {
-					ci = new ClassInfo(name, "");
-				} else {
-					// In the old version, class name and package name are in
-					// two different tags
-					// And we don't have extra info
-					String packageName = attributes.getValue(XmlTags.ATTRIBUTE_PACKAGE_NAME);
-					String fullClassName = packageName + "." + name;
-					ci = new ClassInfo(fullClassName, "");
-				}
-				ci.setId(OIDFactory.buildClassOID(Long.parseLong(classId)));
+				String maxObjectOid = attributes.getValue(XmlTags.ATTRIBUTE_MAX_OBJECT_OID);
+				
+				ci = new ClassInfo(name, "");
+				ci.setOid(oidGenerator.classOidFromString(classId));
 				classAttributeInfo = new OdbArrayList<ClassAttributeInfo>();
-				info(". Importing class " + ci.getFullClassName());
+				info(". Importing class " + ci.getFullClassName() + " - coid="+ci.getOid());
 				return;
 			}
 			if (tagName.equals(XmlTags.TAG_ATTRIBUTE) && state == STATE_CLASS_INFO) {
 				String id = attributes.getValue(XmlTags.ATTRIBUTE_ID);
 				String name = attributes.getValue(XmlTags.ATTRIBUTE_NAME);
+				String sClassOid = attributes.getValue(XmlTags.ATTRIBUTE_CLASS_ID);
 				String type = attributes.getValue(XmlTags.ATTRIBUTE_TYPE);
 				String isEnum = attributes.getValue(XmlTags.ATTRIBUTE_IS_ENUM);
-
-				ClassAttributeInfo cai = new ClassAttributeInfo(Integer.parseInt(id), name, type, null);
+				ClassOid coid = null;
+				if(sClassOid!=null){
+					// when the attribute is non native , we only have the its ClassOid.
+					// So we just not se the type (class name). After getting all classes of the meta model, 
+					// we will set the right class name in the type field
+					coid = oidGenerator.classOidFromString(sClassOid);
+					type = "not yet defined";
+				}
+				ClassAttributeInfo cai = new ClassAttributeInfo(Integer.parseInt(id), name, type, coid,null);
+				
 
 				// Enums must be managed in different way. They are native
 				// objects by with a specific class
@@ -250,17 +240,18 @@ public class XMLImporter implements ContentHandler {
 				// undestands it is a native object and then sets the right enum
 				// class name
 				if (isEnum != null && isEnum.equals("true")) {
-					cai = new ClassAttributeInfo(Integer.parseInt(id), name, ODBType.ENUM.getName(), null);
+					cai = new ClassAttributeInfo(Integer.parseInt(id), name, ODBType.ENUM.getName(), null,null);
 					ODBType odbType = cai.getAttributeType().copy();
 					odbType.setName(type);
 					cai.setAttributeType(odbType);
-					cai.setFullClassName(type);
+					cai.setClassName(type);
 				}
 
 				if (cai.getAttributeType().isArray()) {
 					String arrayOfWhat = attributes.getValue(XmlTags.ATTRIBUTE_ARRAY_OF);
 					cai.getAttributeType().setSubType(ODBType.getFromName(arrayOfWhat));
-					// copy the odb type to avoid another cai uses the same reference
+					// copy the odb type to avoid another cai uses the same
+					// reference
 					cai.setAttributeType(cai.getAttributeType().copy());
 				}
 				classAttributeInfo.add(cai);
@@ -270,14 +261,15 @@ public class XMLImporter implements ContentHandler {
 			if (tagName.equals(XmlTags.TAG_OBJECTS)) {
 				state = STATE_OBJECTS;
 				objectInfos = new ArrayList();
+				info("Start importing objects");
 				return;
 			}
 			if (tagName.equals(XmlTags.TAG_OBJECT) && state == STATE_OBJECTS) {
 				state = STATE_OBJECT;
 				String sObjectId = attributes.getValue(XmlTags.ATTRIBUTE_OID);
-				objectId = OIDFactory.buildObjectOID(Long.parseLong(sObjectId));
+				objectId = oidGenerator.objectOidFromString(sObjectId);
 				String sObjectClassId = attributes.getValue(XmlTags.ATTRIBUTE_CLASS_ID);
-				objectClassId = OIDFactory.buildClassOID(Long.parseLong(sObjectClassId));
+				objectClassId = oidGenerator.classOidFromString(sObjectClassId);
 				nnoi = new NonNativeObjectInfo(metaModel.getClassInfoFromId(objectClassId));
 				nnoi.setOid(objectId);
 				nbObjects++;
@@ -292,9 +284,9 @@ public class XMLImporter implements ContentHandler {
 				attributeId = Integer.parseInt(id);
 				String name = attributes.getValue(XmlTags.ATTRIBUTE_NAME);
 				String value = attributes.getValue(XmlTags.ATTRIBUTE_VALUE);
-				String encoding = OdbConfiguration.getDatabaseCharacterEncoding();
+				String encoding = sessionEngine.getSession().getConfig().getDatabaseCharacterEncoding();
 				if (value != null) {
-					if (encoding == null || encoding.equals(StorageEngineConstant.NO_ENCODING)) {
+					if (encoding == null) {
 						value = URLDecoder.decode(value);
 					} else {
 						value = URLDecoder.decode(value, encoding);
@@ -307,13 +299,7 @@ public class XMLImporter implements ContentHandler {
 					isNull = true;
 				}
 				ClassInfo ci = metaModel.getClassInfoFromId(objectClassId);
-				if (ci == null) {
-					System.out.println("ci is null");
-				}
 				ClassAttributeInfo cai = ci.getAttributeInfoFromId(attributeId);
-				if (cai == null) {
-					System.out.println("cai is null");
-				}
 				ODBType type = cai.getAttributeType();
 
 				if ((type.isArrayOrCollection() || type.isMap()) && !isNull) {
@@ -331,12 +317,12 @@ public class XMLImporter implements ContentHandler {
 
 					AbstractObjectInfo aoi = null;
 					if (objectRefId != null) {
-						aoi = new ObjectReference(OIDFactory.buildObjectOID(Long.parseLong(objectRefId)));
+						aoi = new ObjectReference( oidGenerator.objectOidFromString(objectRefId));
 						nnoi.setAttributeValue(attributeId, aoi);
 					} else {
 						if (isNull) {
 							if (type.isNonNative()) {
-								nnoi.setAttributeValue(attributeId, new NonNativeNullObjectInfo(ci));
+								nnoi.setAttributeValue(attributeId, new NonNativeNullObjectInfo());
 							} else {
 								nnoi.setAttributeValue(attributeId, new NullNativeObjectInfo(type.getId()));
 							}
@@ -345,9 +331,9 @@ public class XMLImporter implements ContentHandler {
 							// the real enum class
 							ClassInfo attributeCi = null;
 							if (type.isEnum()) {
-								attributeCi = metaModel.getClassInfo(cai.getFullClassname(), true);
+								attributeCi = metaModel.getClassInfo(cai.getClassName(), true);
 							}
-							aoi = ObjectTool.stringToObjectInfo(type.getId(), value, ObjectTool.ID_CALLER_IS_XML, attributeCi);
+							aoi = objectTool.stringToObjectInfo(type.getId(), value, ObjectTool.ID_CALLER_IS_XML, attributeCi);
 							nnoi.setAttributeValue(attributeId, aoi);
 						}
 					}
@@ -356,13 +342,14 @@ public class XMLImporter implements ContentHandler {
 			}
 			if (tagName.equals(XmlTags.TAG_COLLECTION) && state == STATE_ATTRIBUTE_COLLECTION) {
 				int size = Integer.parseInt(attributes.getValue(XmlTags.ATTRIBUTE_SIZE));
-				attributeCollection = new ArrayList(size);
+				attributeCollection = new ArrayList<AbstractObjectInfo>(size);
+				attributeCollectionNonNativeObjects = new ArrayList<NonNativeObjectInfo>(size);
 				realClassName = attributes.getValue(XmlTags.ATTRIBUTE_REAL_CLASS_NAME);
 				return;
 			}
 			if (tagName.equals(XmlTags.TAG_ARRAY) && state == STATE_ATTRIBUTE_ARRAY) {
 				int size = Integer.parseInt(attributes.getValue(XmlTags.ATTRIBUTE_SIZE));
-				attributeArray = new Object[size];
+				attributeArray = new AbstractObjectInfo[size];
 				arrayIndex = 0;
 				realClassName = attributes.getValue(XmlTags.ATTRIBUTE_ARRAY_OF);
 				return;
@@ -377,90 +364,75 @@ public class XMLImporter implements ContentHandler {
 			if (tagName.equals(XmlTags.TAG_ELEMENT) && state == STATE_ATTRIBUTE_COLLECTION) {
 				String objectRefId = attributes.getValue(XmlTags.ATTRIBUTE_OBJECT_REF_ID);
 				if (objectRefId != null) {
-					attributeCollection.add(new ObjectReference(OIDFactory.buildObjectOID(Long.parseLong(objectRefId))));
+					ObjectReference or = new ObjectReference( oidGenerator.objectOidFromString(objectRefId));
+					attributeCollection.add(or);
+					attributeCollectionNonNativeObjects.add(or);
 				} else {
 					String value = attributes.getValue(XmlTags.ATTRIBUTE_VALUE);
 					ODBType type = ODBType.getFromName(attributes.getValue(XmlTags.ATTRIBUTE_TYPE));
-					attributeCollection.add(ObjectTool.stringToObjectInfo(type.getId(), value, ObjectTool.ID_CALLER_IS_XML, null));
+					attributeCollection.add(objectTool.stringToObjectInfo(type.getId(), value, ObjectTool.ID_CALLER_IS_XML, null));
 				}
 				return;
 			}
 			if (tagName.equals(XmlTags.TAG_ELEMENT) && state == STATE_ATTRIBUTE_ARRAY) {
 				String objectRefId = attributes.getValue(XmlTags.ATTRIBUTE_OBJECT_REF_ID);
 				if (objectRefId != null) {
-					attributeArray[arrayIndex++] = new ObjectReference(OIDFactory.buildObjectOID(Long.parseLong(objectRefId)));
+					attributeArray[arrayIndex++] = new ObjectReference( oidGenerator.objectOidFromString(objectRefId));
 				} else {
 					String value = attributes.getValue(XmlTags.ATTRIBUTE_VALUE);
 					ODBType type = ODBType.getFromName(realClassName);
-					attributeArray[arrayIndex++] = ObjectTool.stringToObjectInfo(type.getId(), value, ObjectTool.ID_CALLER_IS_XML, null);
+					attributeArray[arrayIndex++] = objectTool.stringToObjectInfo(type.getId(), value, ObjectTool.ID_CALLER_IS_XML, null);
 				}
 				return;
 			}
 			if (tagName.equals(XmlTags.TAG_ELEMENT) && state == STATE_ATTRIBUTE_MAP) {
 				String keyRefId = attributes.getValue(XmlTags.ATTRIBUTE_KEY_ID);
 				String objectRefId = attributes.getValue(XmlTags.ATTRIBUTE_OBJECT_REF_ID);
+				String valueIsNull = attributes.getValue(XmlTags.ATTRIBUTE_VALUE_IS_NULL);
 				Object key = null;
 				Object value = null;
 
 				if (keyRefId != null) {
-					key = new ObjectReference(OIDFactory.buildObjectOID(Long.parseLong(keyRefId)));
+					key = new ObjectReference(oidGenerator.objectOidFromString(keyRefId));
 				} else {
 					String v = attributes.getValue(XmlTags.ATTRIBUTE_KEY_VALUE);
-					String keyType = attributes.getValue(XmlTags.ATTRIBUTE_KEY_TYPE);
-					ODBType type = ODBType.getFromName(keyType);
-					key = ObjectTool.stringToObjectInfo(type.getId(), v, ObjectTool.ID_CALLER_IS_XML, null);
-					
-					if(type.isEnum()){
-						String ciId = attributes.getValue(XmlTags.ATTRIBUTE_ENUM_CLASS_OID);
-						EnumNativeObjectInfo anoi = (EnumNativeObjectInfo) key;
-						anoi.setEnumClassInfo(metaModel.getClassInfoFromId(OIDFactory.buildClassOID(Long.parseLong(ciId))));
-					}
+					ODBType type = ODBType.getFromName(attributes.getValue(XmlTags.ATTRIBUTE_KEY_TYPE));
+					key = objectTool.stringToObjectInfo(type.getId(), v, ObjectTool.ID_CALLER_IS_XML, null);
 				}
 
-				if (objectRefId != null) {
-					value = new ObjectReference(OIDFactory.buildObjectOID(Long.parseLong(objectRefId)));
-				} else {
-					String v = attributes.getValue(XmlTags.ATTRIBUTE_VALUE);
-					ODBType type = ODBType.getFromName(attributes.getValue(XmlTags.ATTRIBUTE_VALUE_TYPE));
-					value = ObjectTool.stringToObjectInfo(type.getId(), v, ObjectTool.ID_CALLER_IS_XML, null);
+				if(valueIsNull!=null){
+					// => the value is null
+					if(valueIsNull.equals(XmlTags.VALUE_NATIVE)){
+						value = new NullNativeObjectInfo();
+					}else{
+						value = new NonNativeNullObjectInfo();
+					}
+				}else{
+					if (objectRefId != null) {
+						value = new ObjectReference( oidGenerator.objectOidFromString(objectRefId));
+					} else {
+						String v = attributes.getValue(XmlTags.ATTRIBUTE_VALUE);
+						ODBType type = ODBType.getFromName(attributes.getValue(XmlTags.ATTRIBUTE_VALUE_TYPE));
+						value = objectTool.stringToObjectInfo(type.getId(), v, ObjectTool.ID_CALLER_IS_XML, null);
+					}
 				}
 				attributeMap.put(key, value);
 				return;
 			}
 		} catch (Exception e) {
-			throw new ODBRuntimeException(NeoDatisError.IMPORT_ERROR
-					.addParameter(storageEngine.getBaseIdentification().getIdentification()), e);
+			throw new NeoDatisRuntimeException(NeoDatisError.IMPORT_ERROR.addParameter(sessionEngine.getSession().getBaseIdentification()
+					.getFullIdentification()), e);
 		} finally {
 		}
-	}
-
-	private void reserveIds(OID maxOid, boolean onlyFirstBlock) throws IOException {
-
-		long nbOids = maxOid.getObjectId();
-		info("Allocating " + nbOids + " OIDs (Object IDs)");
-		if (onlyFirstBlock) {
-			if (nbOids > OdbConfiguration.getNB_IDS_PER_BLOCK()) {
-				nbOids = OdbConfiguration.getNB_IDS_PER_BLOCK();
-			}
-		} else {
-			if (nbOids <= OdbConfiguration.getNB_IDS_PER_BLOCK()) {
-				// No more than one id block, nothing to do
-				return;
-			}
-			// nbOids = nbOids - Configuration.getNB_IDS_PER_BLOCK();
-
-		}
-		storageEngine.getObjectWriter().getIdManager().reserveIds(nbOids);
-
 	}
 
 	public void endElement(String uri, String localName, String tagName) throws SAXException {
 		try {
 			if (tagName.equals(XmlTags.TAG_CLASS)) {
 				ci.setAttributes(classAttributeInfo);
-				metaModel.addClass(ci);
+				metaModel.addClass(ci, false);
 				state = STATE_UNKNOWN;
-				if (OdbConfiguration.isDebugEnabled(LOG_ID)) {
+				if (sessionEngine.getSession().getConfig().isDebugEnabled(LOG_ID)) {
 					DLogger.debug("Class " + ci.getFullClassName() + " created");
 				}
 				// info(". Class "+ci.getFullClassName()+" imported.");
@@ -470,29 +442,36 @@ public class XMLImporter implements ContentHandler {
 				state = STATE_UNKNOWN;
 				// try {
 				info("Persisting Meta Model");
-				storageEngine.setMetaModel(metaModel);
-				// Now that meta model has been stored, lets write the end of
-				// the
-				// ids
-				// reserveIds(maxObjectId, false);
-				// } catch (IOException e) {
-				// throw new ODBRuntimeException(Error.XML_SETTING_META_MODEL,
-				// e);
-				// }
-				info(". Meta Model persisted. " + metaModel.getNumberOfClasses() + " classes");
+				
+				// before persisting meta-model, we need to set the type of each non native cai (ClassInfoAttribute)
+				for(ClassInfo ci:metaModel.getUserClasses()){
+					for(ClassAttributeInfo cai:ci.getAllNonNativeAttributes()){
+						cai.setClassName(metaModel.getClassInfoFromId(cai.getAttributeClassOid()).getFullClassName());
+					}
+				}
+				
+				
+				sessionEngine.getSession().setMetaModel(metaModel);
+				// sets max object oids
+				for(ClassInfo ci:maxObjectOids.keySet()){
+					ObjectOid oid = maxObjectOids.get(ci);
+					//sessionEngine.getLayer4().getoidGenerator().setMaxObjectOidForClass(ci.getOid(), oid);
+					info(". Class " + ci.getFullClassName()+ " -  max object id = " + oid);
+				}
+				//sessionEngine.getLayer4().getoidGenerator().setMaxClassOid(maxClassOid);
+				//info(". Max ClassOid is " + maxClassOid);
+				info("Meta Model persisted. " + metaModel.getNumberOfClasses() + " classes");
+				
 				return;
 			}
 			if (tagName.equals(XmlTags.TAG_OBJECT) && state == STATE_OBJECT) {
 				try {
-					// The last parameter is used to indicate that it is a new
-					// object
-					// The false : object are not written in transaction
-					storageEngine.getObjectWriter().writeNonNativeObjectInfo(nnoi.getOid(), nnoi, -1, false, true);
-					if (OdbConfiguration.isDebugEnabled(LOG_ID)) {
+					sessionEngine.storeMeta(nnoi.getOid(), nnoi);
+					if (sessionEngine.getSession().getConfig().isDebugEnabled(LOG_ID)) {
 						info("Object of type " + nnoi.getClassInfo().getFullClassName() + " with oid " + nnoi.getOid() + " created");
 					}
 				} catch (Exception e) {
-					throw new ODBRuntimeException(NeoDatisError.INTERNAL_ERROR.addParameter("in XmlImporter.endElement.writeObjectInfo"), e);
+					throw new NeoDatisRuntimeException(NeoDatisError.INTERNAL_ERROR.addParameter("in XmlImporter.endElement.writeObjectInfo"), e);
 				}
 				state = STATE_OBJECTS;
 				return;
@@ -502,7 +481,7 @@ public class XMLImporter implements ContentHandler {
 				return;
 			}
 			if (tagName.equals(XmlTags.TAG_COLLECTION) && state == STATE_ATTRIBUTE_COLLECTION) {
-				CollectionObjectInfo coi = new CollectionObjectInfo(attributeCollection);
+				CollectionObjectInfo coi = new CollectionObjectInfo(attributeCollection, attributeCollectionNonNativeObjects);
 				coi.setRealCollectionClassName(realClassName);
 				nnoi.setAttributeValue(attributeId, coi);
 				state = STATE_ATTRIBUTE;
@@ -513,7 +492,7 @@ public class XMLImporter implements ContentHandler {
 			if (tagName.equals(XmlTags.TAG_ARRAY) && state == STATE_ATTRIBUTE_ARRAY) {
 				ArrayObjectInfo aoi = new ArrayObjectInfo(attributeArray);
 				aoi.setRealArrayComponentClassName(realClassName);
-				// copy the odb type 
+				// copy the odb type
 				aoi.setOdbType(aoi.getOdbType().copy());
 				aoi.getOdbType().setSubType(ODBType.getFromName(realClassName));
 				nnoi.setAttributeValue(attributeId, aoi);
@@ -528,6 +507,10 @@ public class XMLImporter implements ContentHandler {
 				state = STATE_ATTRIBUTE;
 				attributeMap = null;
 				attributeId = -1;
+				return;
+			}
+			if (tagName.equals(XmlTags.TAG_OBJECTS)) {
+				info("End importing " + nbObjects + " objects");
 				return;
 			}
 		} finally {
@@ -551,10 +534,10 @@ public class XMLImporter implements ContentHandler {
 	public void setExternalLogger(ILogger logger) {
 		this.externalLogger = logger;
 	}
+
 	public void logToConsole() {
 		this.externalLogger = new ConsoleLogger();
 	}
-
 
 	protected void info(Object o) {
 		if (externalLogger != null) {

@@ -94,7 +94,7 @@ public interface IBTreeNode extends Serializable {
 	 */
 	int getPositionOfKey(Comparable key);
 
-	void insertKeyAndValue(Comparable key, Object value);
+	boolean insertKeyAndValue(Comparable key, Object value);
 
 	void mergeWith(IBTreeNode node);
 

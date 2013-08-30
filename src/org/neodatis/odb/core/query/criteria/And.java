@@ -32,9 +32,9 @@ public class And extends ComposedExpression {
 	public boolean match(Object object) {
 		Iterator iterator = criteria.iterator();
 
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		while (iterator.hasNext()) {
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 
 			// For AND Expression, if one is false, then the whole
 			// expression will be false
@@ -49,11 +49,11 @@ public class And extends ComposedExpression {
 		StringBuffer buffer = new StringBuffer();
 		Iterator iterator = criteria.iterator();
 		;
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		buffer.append("(");
 		boolean isFirst = true;
 		while (iterator.hasNext()) {
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			if (isFirst) {
 				buffer.append(criterion.toString());
 				isFirst = false;
@@ -67,10 +67,10 @@ public class And extends ComposedExpression {
 
 	public boolean canUseIndex() {
 		Iterator iterator = criteria.iterator();;
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		
 		while(iterator.hasNext()){
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			if(!criterion.canUseIndex()){
 				return false;
 			}

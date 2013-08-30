@@ -26,7 +26,6 @@ import java.awt.FlowLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -43,25 +42,27 @@ import javax.swing.JTextField;
 import org.neodatis.odb.Objects;
 import org.neodatis.odb.core.layers.layer2.meta.ClassAttributeInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.layers.layer4.OidGenerator;
 import org.neodatis.odb.core.query.criteria.ComposedExpression;
-import org.neodatis.odb.core.query.criteria.ICriterion;
+import org.neodatis.odb.core.query.criteria.CriteriaQuery;
+import org.neodatis.odb.core.query.criteria.Criterion;
 import org.neodatis.odb.core.query.criteria.Operator;
+import org.neodatis.odb.core.query.criteria.W;
 import org.neodatis.odb.core.query.criteria.Where;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.IBrowserContainer;
 import org.neodatis.odb.gui.Messages;
 import org.neodatis.odb.gui.component.GUITool;
 import org.neodatis.odb.gui.objectbrowser.flat.FlatQueryResultPanel;
 import org.neodatis.odb.gui.objectbrowser.hierarchy.HierarchicObjectBrowserPanel;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
-import org.neodatis.odb.impl.tool.ObjectTool;
+import org.neodatis.odb.tool.ObjectTool;
 import org.neodatis.tool.DLogger;
 import org.neodatis.tool.ILogger;
 import org.neodatis.tool.wrappers.map.OdbHashMap;
 
 public class CriteriaQueryPanel extends JPanel implements ActionListener {
 
-	private IStorageEngine storageEngine;
+	private SessionEngine storageEngine;
 	private ClassInfo classInfo;
 
 	private JButton btExecute;
@@ -73,8 +74,9 @@ public class CriteriaQueryPanel extends JPanel implements ActionListener {
 	private JTextField tfFrom;
 	private JTextField tfTo;
 	private ILogger logger;
+	private ObjectTool objectTool;
 
-	public CriteriaQueryPanel(IStorageEngine aStorageEngine, ClassInfo ci, IBrowserContainer aBrowser, ILogger logger) {
+	public CriteriaQueryPanel(SessionEngine aStorageEngine, ClassInfo ci, IBrowserContainer aBrowser, ILogger logger) {
 		this.storageEngine = aStorageEngine;
 		this.classInfo = ci;
 		textFields = new OdbHashMap<String, JTextField>();
@@ -82,6 +84,7 @@ public class CriteriaQueryPanel extends JPanel implements ActionListener {
 		this.browser = aBrowser;
 		this.logger = logger;
 
+		this.objectTool = new ObjectTool(this.storageEngine.getSession());
 		init();
 	}
 
@@ -129,7 +132,7 @@ public class CriteriaQueryPanel extends JPanel implements ActionListener {
 
 			textFields.put(cai.getName(), textField);
 			btHelp = new JButton("?");
-			btHelp.setToolTipText("Type is " + cai.getFullClassname());
+			btHelp.setToolTipText("Type is " + cai.getClassName());
 			fieldsPanel.add(btHelp);
 			operatorCombos.put(cai.getName(), operatorCombo);
 		}
@@ -193,7 +196,7 @@ public class CriteriaQueryPanel extends JPanel implements ActionListener {
 	private void executeQuery() {
 
 		Iterator iterator = textFields.keySet().iterator();
-		ComposedExpression and = Where.and();
+		ComposedExpression and = W.and();
 		while (iterator.hasNext()) {
 			Object key = iterator.next();
 			if (key.equals("other.field.value") || key.equals("other.field.name")) {
@@ -208,8 +211,8 @@ public class CriteriaQueryPanel extends JPanel implements ActionListener {
 				ClassAttributeInfo cai = classInfo.getAttributeInfoFromName(key.toString());
 				try {
 					// Transform the string in the right format : the format of the attribute
-					Object oo = ObjectTool.stringToObject(cai.getAttributeType().getId(), value, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
-					and.add(Where.get(key.toString(), operator, oo));
+					Object oo = objectTool.stringToObject(cai.getAttributeType().getId(), value, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
+					and.add(W.get(key.toString(), operator, oo));
 				} catch (Exception e) {
 					logger.error("Error while executing query", e);
 					JOptionPane.showMessageDialog(this, "Error while executing query : " + e.getMessage());
@@ -225,21 +228,21 @@ public class CriteriaQueryPanel extends JPanel implements ActionListener {
 		Operator operator = (Operator) comboBox.getSelectedItem();
 
 		if (tfName.getText().length() != 0 && tfValue.getText().length() != 0) {
-			and.add(Where.get(tfName.getText(), operator, tfValue.getText()));
+			and.add(W.get(tfName.getText(), operator, tfValue.getText()));
 		}
 
 		CriteriaQuery criteriaQuery = null;
 
-		ICriterion criteria = and;
+		Criterion criteria = and;
 
 		// Transform AND in a single criteria if there is only one.
 		if (and.getNbCriteria() == 1) {
 			criteria = and.getCriterion(0);
 		}
 		if (!and.isEmpty()) {
-			criteriaQuery = new CriteriaQuery(classInfo.getFullClassName(), criteria);
+			criteriaQuery = storageEngine.criteriaQuery(classInfo.getFullClassName(), criteria);
 		} else {
-			criteriaQuery = new CriteriaQuery(classInfo.getFullClassName());
+			criteriaQuery = storageEngine.criteriaQuery(classInfo.getFullClassName());
 		}
 		String browserType = cbBrowserType.getSelectedItem().toString();
 		int from = Integer.valueOf(tfFrom.getText()).intValue();
@@ -247,7 +250,8 @@ public class CriteriaQueryPanel extends JPanel implements ActionListener {
 		DLogger.info("Executing Restrictions Query on " + classInfo.getFullClassName() + " : " + criteriaQuery.toString());
 		Objects l = null;
 		try {
-			l = storageEngine.getObjectInfos(criteriaQuery, true, from, to, false);
+			criteriaQuery.getQueryParameters().setStartIndex(from).setEndIndex(to);
+			l = storageEngine.getMetaObjects(criteriaQuery);
 			String title = classInfo.getFullClassName() + " - query : " + criteriaQuery.toString();
 			JPanel panel = null;
 			if (browserType.equals("Table View")) {

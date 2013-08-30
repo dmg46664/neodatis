@@ -20,9 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.OID;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.ObjectOid;
 
 /** Message used to retrieve the object info header from an object oid
  * 
@@ -30,16 +28,16 @@ import org.neodatis.odb.core.server.layers.layer3.engine.Message;
  *
  */
 public class GetObjectHeaderFromIdMessage extends Message {
-	private OID oid;
+	private ObjectOid oid;
 	private boolean useCache;
 	
-	public GetObjectHeaderFromIdMessage(String baseId, String connectionId, OID oid, boolean useCache){
-		super(Command.GET_OBJECT_HEADER_FROM_ID, baseId,connectionId);
+	public GetObjectHeaderFromIdMessage(String baseId, String connectionId, ObjectOid oid, boolean useCache){
+		super(MessageType.GET_OBJECT_HEADER_FROM_ID, baseId,connectionId);
 		this.oid = oid;
 		this.useCache = useCache;
 	}
 
-	public OID getOid() {
+	public ObjectOid getOid() {
 		return oid;
 	}
 	public boolean useCache(){

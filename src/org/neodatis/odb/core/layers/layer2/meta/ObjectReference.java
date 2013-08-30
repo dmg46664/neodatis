@@ -23,8 +23,9 @@ package org.neodatis.odb.core.layers.layer2.meta;
 
 import java.util.Map;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.core.NeoDatisError;
 
 /**
@@ -32,22 +33,30 @@ import org.neodatis.odb.core.NeoDatisError;
  * @author osmadja
  *
  */
-public class ObjectReference extends AbstractObjectInfo {
-    private OID id;
+public class ObjectReference extends NonNativeObjectInfo {
+	public boolean isNonNativeObject() {
+		return true;
+	}
+	private ObjectOid id;
     private NonNativeObjectInfo nnoi;
-    public ObjectReference(OID id) {
-        super(ODBType.NON_NATIVE_ID);
+    public ObjectReference(ObjectOid id) {
+        super();
         this.id = id;
     }
     public ObjectReference(NonNativeObjectInfo nnoi) {
-        super(ODBType.NON_NATIVE_ID);
+        super(nnoi.getClassInfo());
         this.id = null;
         this.nnoi = nnoi;
+    }
+    public ObjectReference(ClassInfo ci) {
+        super(ci);
+        this.id = null;
+        this.nnoi = null;
     }
     /**
      * @return Returns the id.
      */
-    public OID getOid() {
+    public ObjectOid getOid() {
     	if(nnoi!=null){
     		return nnoi.getOid();
     	}
@@ -60,14 +69,17 @@ public class ObjectReference extends AbstractObjectInfo {
     	return "ObjectReference to oid "+getOid();
     }
 
+    public int hashCode() {
+		return id.hashCode();
+	}
     public boolean isNull(){
     	return false;
     }
 	public Object getObject() {
-		throw new ODBRuntimeException(NeoDatisError.METHOD_SHOULD_NOT_BE_CALLED.addParameter("getObject").addParameter(this.getClass().getName()));
+		throw new NeoDatisRuntimeException(NeoDatisError.METHOD_SHOULD_NOT_BE_CALLED.addParameter("getObject").addParameter(this.getClass().getName()));
 	}
 	public void setObject(Object object) {
-		throw new ODBRuntimeException(NeoDatisError.METHOD_SHOULD_NOT_BE_CALLED.addParameter("setObject").addParameter(this.getClass().getName()));
+		throw new NeoDatisRuntimeException(NeoDatisError.METHOD_SHOULD_NOT_BE_CALLED.addParameter("setObject").addParameter(this.getClass().getName()));
 	}
 	public NonNativeObjectInfo getNnoi() {
 		return nnoi;

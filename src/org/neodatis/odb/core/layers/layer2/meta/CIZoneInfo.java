@@ -23,7 +23,7 @@ package org.neodatis.odb.core.layers.layer2.meta;
 
 import java.io.Serializable;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.OID;
 import org.neodatis.odb.core.NeoDatisError;
 
@@ -77,7 +77,7 @@ public class CIZoneInfo implements Serializable {
 		
 		nbObjects--;
 		if(nbObjects<0){
-			throw new ODBRuntimeException(NeoDatisError.INTERNAL_ERROR.addParameter("nb objects is negative! in "+ci.getFullClassName()));
+			throw new NeoDatisRuntimeException(NeoDatisError.INTERNAL_ERROR.addParameter("nb objects is negative! in "+ci.getFullClassName()));
 		}
 	}
 

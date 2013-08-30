@@ -21,8 +21,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 package org.neodatis.odb.core.server.message;
 
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfoList;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 /** A NewClassInfosMessage is used by the Client/Server mode to add a new class infos (List) to the meta model on the server
  * 
@@ -33,7 +31,7 @@ public class NewClassInfoListMessage extends Message {
 	private ClassInfoList classInfoList;
 	
 	public NewClassInfoListMessage(String baseId, String connectionId, ClassInfoList ciList){
-		super(Command.ADD_CLASS_INFO_LIST, baseId,connectionId);
+		super(MessageType.ADD_CLASS_INFO_LIST, baseId,connectionId);
 		this.classInfoList = ciList;
 	}
 

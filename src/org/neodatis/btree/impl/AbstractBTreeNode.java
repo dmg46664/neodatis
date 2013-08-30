@@ -69,7 +69,7 @@ public abstract class AbstractBTreeNode implements IBTreeNode {
 		init();
 	}
 
-	public abstract void insertKeyAndValue(Comparable key, Object value);
+	public abstract boolean insertKeyAndValue(Comparable key, Object value);
 	
 	protected abstract void init();
 

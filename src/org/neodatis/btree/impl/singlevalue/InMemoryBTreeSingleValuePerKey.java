@@ -22,6 +22,7 @@ package org.neodatis.btree.impl.singlevalue;
 
 import java.util.Iterator;
 
+import org.neodatis.OrderByConstants;
 import org.neodatis.btree.BTreeIteratorSingleValuePerKey;
 import org.neodatis.btree.IBTreeNode;
 import org.neodatis.btree.IBTreeNodeOneValuePerKey;
@@ -29,12 +30,12 @@ import org.neodatis.btree.IBTreePersister;
 import org.neodatis.btree.IBTreeSingleValuePerKey;
 import org.neodatis.btree.impl.AbstractBTree;
 import org.neodatis.btree.impl.InMemoryPersister;
-import org.neodatis.odb.core.OrderByConstants;
 
 public class InMemoryBTreeSingleValuePerKey extends AbstractBTree implements IBTreeSingleValuePerKey{
 
 	protected static int nextId = 1;
 	protected Integer id;
+	protected boolean replaceOnDuplicate;
 	
 	public InMemoryBTreeSingleValuePerKey() {
 		super();
@@ -55,7 +56,9 @@ public class InMemoryBTreeSingleValuePerKey extends AbstractBTree implements IBT
 	}
 
 	public IBTreeNode buildNode() {
-		return new InMemoryBTreeNodeSingleValuePerkey(this);
+		IBTreeNodeOneValuePerKey node = new InMemoryBTreeNodeSingleValuePerkey(this);
+		node.setReplaceOnDuplicate(replaceOnDuplicate);
+		return node;
 	}
 
 	public Object getId() {
@@ -75,5 +78,13 @@ public class InMemoryBTreeSingleValuePerKey extends AbstractBTree implements IBT
 	 */
 	public Iterator iterator(OrderByConstants orderBy) {
 		return new BTreeIteratorSingleValuePerKey(this,orderBy);
+	}
+
+	/* (non-Javadoc)
+	 * @see org.neodatis.btree.IBTreeSingleValuePerKey#setReplaceOnDuplicate(boolean)
+	 */
+	public void setReplaceOnDuplicate(boolean yesNo) {
+		this.replaceOnDuplicate = yesNo;
+		((IBTreeNodeOneValuePerKey)getRoot()).setReplaceOnDuplicate(yesNo);
 	}
 }

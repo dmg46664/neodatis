@@ -21,9 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 package org.neodatis.odb.core.server.message;
 
 import org.neodatis.odb.Values;
-import org.neodatis.odb.core.query.execution.IQueryExecutionPlan;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.core.query.IQueryExecutionPlan;
 /**
  * A response to a GetObjectValuesMessage command
  * @author olivier s
@@ -36,12 +34,12 @@ public class GetObjectValuesMessageResponse extends Message {
 	private IQueryExecutionPlan plan;
 	
 	public GetObjectValuesMessageResponse(String baseId, String connectionId, String error){
-		super(Command.GET_OBJECT_VALUES, baseId,connectionId);
+		super(MessageType.GET_OBJECT_VALUES, baseId,connectionId);
 		setError(error);
 	}
 
 	public GetObjectValuesMessageResponse(String baseId, String connectionId, Values values, IQueryExecutionPlan queryExecutionPlan){
-		super(Command.GET_OBJECT_VALUES, baseId,connectionId);
+		super(MessageType.GET_OBJECT_VALUES, baseId,connectionId);
 		this.values = values;
 		this.plan = queryExecutionPlan;
 	}

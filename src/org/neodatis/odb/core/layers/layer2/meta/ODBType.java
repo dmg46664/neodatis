@@ -29,12 +29,15 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.neodatis.odb.ODBRuntimeException;
-import org.neodatis.odb.OdbConfiguration;
+import org.neodatis.odb.ClassOid;
+import org.neodatis.odb.NeoDatisRuntimeException;
+import org.neodatis.odb.OID;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.odb.core.NeoDatisError;
-import org.neodatis.odb.core.layers.layer2.instance.IClassPool;
-import org.neodatis.odb.impl.core.oid.OdbClassOID;
-import org.neodatis.odb.impl.core.oid.OdbObjectOID;
+import org.neodatis.odb.core.layers.layer2.instance.ClassPool;
+import org.neodatis.odb.core.oid.uuid.ClassOidImpl;
+import org.neodatis.odb.core.oid.uuid.OIDImpl;
+import org.neodatis.odb.core.oid.uuid.ObjectOidImpl;
 import org.neodatis.tool.wrappers.OdbClassUtil;
 import org.neodatis.tool.wrappers.list.IOdbList;
 import org.neodatis.tool.wrappers.list.OdbArrayList;
@@ -48,24 +51,20 @@ import org.neodatis.tool.wrappers.map.OdbHashMap;
  */
 public final class ODBType implements Serializable{
 	public static int nb;
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 341217747918380780L;
 	private boolean isPrimitive; 
 	private final int id;
 
 	private String name;
-
+	/** This field is not really used for processing (except for native types like INT, BYTE and LONG)*/
 	private int size;
 
-	private transient Class superClass;
+	private Class superClass;
 	/** Used to instantiate the class when complex subclass is referenced. example, when a Collection$SynchronizedMap is referenced
 	 * ODB, will use HashMap instead
 	 */
 	private Class defaultInstanciationClass;
     private long position;
-    private transient static IClassPool classPool = null;
+    private transient ClassPool classPool;
 
 	/** For array element type*/
 	private ODBType subType;
@@ -110,9 +109,15 @@ public final class ODBType implements Serializable{
 	public final static int DATE_TIMESTAMP_ID = 172;
 	public final static int DATE_CALENDAR_ID = 173;
 	public final static int DATE_GREGORIAN_CALENDAR_ID = 174;
-	public final static int OID_ID = 180;
-	public final static int OBJECT_OID_ID = 181;
-	public final static int CLASS_OID_ID = 182;
+
+	
+	public final static int OBJECT_OID_ID = 180;
+	public final static int OBJECT_OID_IMPL_UUID_ID = 181;
+	public final static int OBJECT_OID_IMPL_SEQ_ID = 182;
+	public final static int CLASS_OID_ID = 185;
+	public final static int CLASS_OID_IMPL_UUID_ID = 186;
+	public final static int CLASS_OID_IMPL_SEQ_ID = 187;
+	public final static int OID_ID = 189;
 	
 	public final static int BIG_INTEGER_ID = 190;
 	public final static int BIG_DECIMAL_ID = 200;
@@ -121,7 +126,7 @@ public final class ODBType implements Serializable{
 	public final static int ENUM_ID = 211;
 	
 	
-	public final static int NATIVE_FIX_SIZE_MAX_ID = CLASS_OID_ID;
+	public final static int NATIVE_FIX_SIZE_MAX_ID = CLASS_OID_IMPL_SEQ_ID;
 	public final static int NATIVE_MAX_ID = STRING_ID;
 
 	public final static int COLLECTION_ID = 250;
@@ -197,9 +202,13 @@ public final class ODBType implements Serializable{
     
     //public final static ODBType MAP = new ODBType(false,MAP_ID, "java.util.AbstractMap", 0, AbstractMap.class);
 	public final static ODBType MAP = new ODBType(false,MAP_ID, Map.class.getName(), 0, Map.class,HashMap.class);
-	public final static ODBType OID= new ODBType(false,OID_ID, org.neodatis.odb.OID.class.getName(), 0, org.neodatis.odb.OID.class);
-	public final static ODBType OBJECT_OID= new ODBType(false,OBJECT_OID_ID, OdbObjectOID.class.getName(), 0, OdbObjectOID.class);
-	public final static ODBType CLASS_OID= new ODBType(false,CLASS_OID_ID, OdbClassOID.class.getName(), 0, OdbClassOID.class);
+	public final static ODBType OBJECT_OID= new ODBType(false,OBJECT_OID_ID, ObjectOid.class.getName(), INTEGER.getSize()+2*LONG.getSize(), ObjectOid.class);
+	public final static ODBType OBJECT_OID_UUID_IMPL= new ODBType(false,OBJECT_OID_IMPL_UUID_ID, ObjectOidImpl.class.getName(), INTEGER.getSize()+2*LONG.getSize(), OIDImpl.class);
+	public final static ODBType OBJECT_OID_SEQ_IMPL= new ODBType(false,OBJECT_OID_IMPL_SEQ_ID, org.neodatis.odb.core.oid.sequential.ObjectOidImpl.class.getName(), INTEGER.getSize()+2*LONG.getSize(), OIDImpl.class);
+	public final static ODBType CLASS_OID= new ODBType(false,CLASS_OID_ID, ClassOid.class.getName(), INTEGER.getSize()+LONG.getSize(), ClassOid.class);
+	public final static ODBType CLASS_OID_UUID_IMPL= new ODBType(false,CLASS_OID_IMPL_UUID_ID, ClassOidImpl.class.getName(), INTEGER.getSize()+LONG.getSize(), ClassOidImpl.class);
+	public final static ODBType CLASS_OID_SEQ_IMPL= new ODBType(false,CLASS_OID_IMPL_SEQ_ID, org.neodatis.odb.core.oid.sequential.ClassOidImpl.class.getName(), INTEGER.getSize()+LONG.getSize(), ClassOidImpl.class);
+	public final static ODBType OID= new ODBType(false,OID_ID, OID.class.getName(), OBJECT_OID.size, OID.class);
 
 	public final static ODBType NON_NATIVE = new ODBType(false,NON_NATIVE_ID, "non native", 0);
 
@@ -216,6 +225,8 @@ public final class ODBType implements Serializable{
 	static final public int SIZE_OF_LONG = ODBType.LONG.getSize();
 	public static final int SIZE_OF_BOOL = ODBType.BOOLEAN.getSize();
 	public static final int SIZE_OF_BYTE = ODBType.BYTE.getSize();
+	public static final int SIZE_OF_OBJECT_OID = ODBType.OBJECT_OID.getSize();
+	public static final int SIZE_OF_CLASS_OID = ODBType.CLASS_OID.getSize();
 
 	
 	
@@ -258,9 +269,12 @@ public final class ODBType implements Serializable{
         allTypes.add(MAP);
         allTypes.add(OID);
         allTypes.add(OBJECT_OID);
+        allTypes.add(OBJECT_OID_UUID_IMPL);
+        allTypes.add(OBJECT_OID_SEQ_IMPL);
         allTypes.add(CLASS_OID);
+        allTypes.add(CLASS_OID_UUID_IMPL);
+        allTypes.add(CLASS_OID_SEQ_IMPL);
 		allTypes.add(NON_NATIVE);
-
 		
         ODBType type = null;
         for (int i = 0; i < allTypes.size(); i++) {
@@ -289,10 +303,6 @@ public final class ODBType implements Serializable{
 		this.defaultInstanciationClass = defaultClass;
 	}
 
-	private synchronized void initClassPool() {
-		ODBType.classPool = OdbConfiguration.getCoreProvider().getClassPool();
-		
-	}
 	public ODBType copy(){
 		ODBType newType = new ODBType(isPrimitive,id,name,size);
 		if(subType!=null){
@@ -304,7 +314,7 @@ public final class ODBType implements Serializable{
 		ODBType odbType = typesById.get(new Integer(id));
 		
 		if(odbType==null){
-			throw new ODBRuntimeException(NeoDatisError.ODB_TYPE_ID_DOES_NOT_EXIST.addParameter(id));
+			throw new NeoDatisRuntimeException(NeoDatisError.ODB_TYPE_ID_DOES_NOT_EXIST.addParameter(id));
 		}
 		return odbType;
 	}
@@ -486,7 +496,7 @@ public final class ODBType implements Serializable{
 		return getId() == type.getId();
 	}
 
-	public Class getNativeClass() {
+	public Class getNativeClass(ClassPool classPool) {
 		switch (id) {
 			case NATIVE_BOOLEAN_ID:return Boolean.TYPE;
 			case NATIVE_BYTE_ID:return Byte.TYPE;
@@ -496,18 +506,16 @@ public final class ODBType implements Serializable{
 			case NATIVE_INT_ID:return Integer.TYPE;
 			case NATIVE_LONG_ID:return Long.TYPE;
 			case NATIVE_SHORT_ID:return Short.TYPE;
-			case OBJECT_OID_ID:return OdbObjectOID.class;
-			case CLASS_OID_ID:return OdbClassOID.class;
-			case OID_ID:return org.neodatis.odb.OID.class;
-		}
-		if(classPool==null){
-			initClassPool();
+			case OBJECT_OID_ID:return ObjectOid.class;
+			case OBJECT_OID_IMPL_UUID_ID:return ObjectOidImpl.class;
+			case OBJECT_OID_IMPL_SEQ_ID:return org.neodatis.odb.core.oid.sequential.ObjectOidImpl.class;
+			case CLASS_OID_ID:return ClassOid.class;
+			case CLASS_OID_IMPL_UUID_ID:return ClassOidImpl.class;
+			case CLASS_OID_IMPL_SEQ_ID:return org.neodatis.odb.core.oid.sequential.ClassOidImpl.class;
 		}
 		return classPool.getClass(getName());
 	}
 	
-	
-
 	public boolean isNonNative(){
 		return id==NON_NATIVE_ID;
 	}
@@ -521,14 +529,6 @@ public final class ODBType implements Serializable{
     public static boolean isNull(int odbTypeId){
         return odbTypeId==NULL_ID;
     }
-    public boolean hasFixSize(){
-        return hasFixSize(id);
-    }
-    public static boolean hasFixSize(int odbId){
-        return odbId>0 && odbId<=NATIVE_FIX_SIZE_MAX_ID;
-    	//return odbId != BIG_INTEGER_ID && odbId != BIG_DECIMAL_ID && odbId != STRING_ID && odbId != COLLECTION_ID && odbId!=ARRAY_ID && odbId!= MAP_ID && odbId!=NON_NATIVE_ID;
-    }
-    
     public boolean isStringOrBigDicemalOrBigInteger(){
         return isStringOrBigDicemalOrBigInteger(id);
     }
@@ -554,9 +554,9 @@ public final class ODBType implements Serializable{
     	return ODBType.getFromId(odbTypeId).isPrimitive;    	
     }
 
-	public static boolean typesAreCompatible(ODBType type1, ODBType type2) {
+	public static boolean typesAreCompatible(ODBType type1, ODBType type2, ClassPool classPool) {
 		if(type1.isArray() && type2.isArray()){
-			return typesAreCompatible(type1.getSubType(), type2.getSubType());
+			return typesAreCompatible(type1.getSubType(), type2.getSubType(),classPool);
 		}
 
 		if(type1.getName().equals(type2.getName())){
@@ -569,7 +569,7 @@ public final class ODBType implements Serializable{
 			return false;
 		}
 		if(type1.isNonNative() && type2.isNonNative()){
-			return (type1.getNativeClass() == type2.getNativeClass()) || (type1.getNativeClass().isAssignableFrom(type2.getNativeClass()));
+			return (type1.getName().equals(type2.getName())) || (type1.getNativeClass(classPool).isAssignableFrom(type2.getNativeClass(classPool)));
 		}
 		return false;
 		

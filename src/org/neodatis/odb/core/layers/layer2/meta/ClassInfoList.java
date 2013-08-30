@@ -48,6 +48,7 @@ public class ClassInfoList implements Serializable{
 	private ClassInfo mainClassInfo;
 
 	public ClassInfoList() {
+		this.classInfos = new OdbHashMap<String, ClassInfo>();
 	}
 	
 	public ClassInfoList(ClassInfo mainClassInfo) {
@@ -61,7 +62,12 @@ public class ClassInfoList implements Serializable{
 	}
 	
 	public void addClassInfo(ClassInfo classInfo){
+		boolean isFirstCi = classInfos.isEmpty();
 		classInfos.put(classInfo.getFullClassName(),classInfo);
+		
+		if(isFirstCi){
+			mainClassInfo = classInfo;
+		}
 	}
 	
 	public Collection<ClassInfo> getClassInfos(){

@@ -20,13 +20,9 @@
  */
 package org.neodatis.odb.tool;
 
-import java.util.List;
-
-import org.neodatis.odb.OdbConfiguration;
-import org.neodatis.odb.core.layers.layer3.IBaseIdentification;
-import org.neodatis.odb.core.layers.layer3.IOFileParameter;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
-import org.neodatis.tool.DisplayUtility;
+import org.neodatis.odb.NeoDatis;
+import org.neodatis.odb.core.layers.layer4.BaseIdentification;
+import org.neodatis.odb.core.layers.layer4.IOFileParameter;
 
 /**
  * @sharpen.ignore
@@ -42,17 +38,19 @@ public class OIDBrowser {
 
 	public static void main(String[] args) throws Exception {
 		// LogUtil.allOn(true);
-		OdbConfiguration.setCheckModelCompatibility(false);
+		//OdbConfiguration.setCheckMetaModelCompatibility(false);
 		String fileName = "array1.odb";
 		String user = "root";
 		String password = "root";
-		IBaseIdentification parameter = new IOFileParameter(fileName, false, null, null);
+		BaseIdentification parameter = new IOFileParameter(fileName, false, NeoDatis.getConfig().setCheckMetaModelCompatibility(false));
 		// IStorageEngine engine =
-		// StorageEngineFactory.get(parameter,user,password);
-		IStorageEngine engine = OdbConfiguration.getCoreProvider().getClientStorageEngine(parameter);
+		// StorageEngineFactory.get(identification,user,password);
+		/*
+		OldDatabaseEngine engine = OdbConfiguration.getCoreProvider().getClientStorageEngine(parameter);
 
 		List l = engine.getAllObjectIdInfos(null, true);// "br.com.ccr.sct.dav.vo.RelFunctionProfile",true);
 		DisplayUtility.display("All ids", l);
 		engine.close();
+		*/
 	}
 }

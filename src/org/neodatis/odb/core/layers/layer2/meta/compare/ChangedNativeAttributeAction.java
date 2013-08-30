@@ -21,6 +21,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.layers.layer2.meta.compare;
 
+import org.neodatis.odb.core.layers.layer2.meta.AttributeIdentification;
 import org.neodatis.odb.core.layers.layer2.meta.NativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ODBType;
@@ -37,17 +38,17 @@ public class ChangedNativeAttributeAction implements ChangedAttribute{
 	/** The new object meta representation: is case of no in place update*/
 	private NonNativeObjectInfo newNoi;
 	
-	private long updatePosition;
+	private AttributeIdentification attributeIdentification;
     private NativeObjectInfo noiWithNewValue;
 	private int recursionLevel;
 	private String attributeName;
 	/** This boolean value is set to true when original object is null, is this case there is no way to do in place update*/
 	private boolean reallyCantDoInPlaceUpdate;
 	
-	public ChangedNativeAttributeAction(NonNativeObjectInfo oldNnoi, NonNativeObjectInfo newNnoi, long position, NativeObjectInfo newNoi, int recursionLevel,boolean canDoInPlaceUpdate,String attributeName) {
+	public ChangedNativeAttributeAction(NonNativeObjectInfo oldNnoi, NonNativeObjectInfo newNnoi, AttributeIdentification attributeIdentification, NativeObjectInfo newNoi, int recursionLevel,boolean canDoInPlaceUpdate,String attributeName) {
 		this.oldNnoi = oldNnoi;
 		this.newNoi = newNnoi;
-		this.updatePosition = position;
+		this.attributeIdentification= attributeIdentification;
 		this.noiWithNewValue = newNoi;
 		this.recursionLevel = recursionLevel;
 		this.reallyCantDoInPlaceUpdate = canDoInPlaceUpdate;
@@ -56,7 +57,7 @@ public class ChangedNativeAttributeAction implements ChangedAttribute{
 
 	public String toString() {
 		StringBuffer buffer = new StringBuffer();
-		buffer.append("field : '").append(attributeName).append("' - update position=").append(updatePosition).append(" - new value=").append(noiWithNewValue).append(" - level=").append(recursionLevel);
+		buffer.append("field : '").append(attributeName).append("' - update position=").append(attributeIdentification.offset).append(" - new value=").append(noiWithNewValue).append(" - level=").append(recursionLevel);
 		return buffer.toString();
 	}
 
@@ -68,8 +69,8 @@ public class ChangedNativeAttributeAction implements ChangedAttribute{
 		return recursionLevel;
 	}
 
-	public long getUpdatePosition() {
-		return updatePosition;
+	public AttributeIdentification getUpdatePosition() {
+		return attributeIdentification;
 	}
 	
 	public boolean reallyCantDoInPlaceUpdate() {

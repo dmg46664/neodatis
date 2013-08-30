@@ -38,7 +38,7 @@ import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
 
 import org.neodatis.odb.ODB;
-import org.neodatis.odb.ODBFactory;
+import org.neodatis.odb.NeoDatis;
 import org.neodatis.odb.gui.LoggerPanel;
 import org.neodatis.odb.gui.Messages;
 import org.neodatis.odb.gui.component.GUITool;
@@ -183,7 +183,7 @@ public class XmlExportPanel extends JPanel implements ActionListener, Runnable {
 			user = null;
 			password = null;
 		}
-		ODB odb = ODBFactory.open(odbFile.getPath(), user, password);
+		ODB odb = NeoDatis.open(odbFile.getPath(), user, password);
 		XMLExporter exporter = new XMLExporter(odb);
 		exporter.setExternalLogger(loggerPanel);
 		try {

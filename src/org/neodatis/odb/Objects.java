@@ -23,8 +23,7 @@ package org.neodatis.odb;
 import java.util.Collection;
 import java.util.Iterator;
 
-import org.neodatis.odb.core.OrderByConstants;
-import org.neodatis.tool.wrappers.OdbComparable;
+import org.neodatis.OrderByConstants;
 
 /**
  * The main interface of all query results of NeoDatis ODB. Objects interface
@@ -53,7 +52,7 @@ public interface Objects<E> extends Collection<E> {
 	 * 
 	 * @return
 	 */
-	public E getFirst();
+	public E first();
 
 	/**
 	 * Reset the internal iterator of the collection
@@ -69,7 +68,7 @@ public interface Objects<E> extends Collection<E> {
 	 *            the object
 	 * @return
 	 */
-	public boolean addWithKey(OdbComparable key, E o);
+	public boolean addWithKey(Comparable key, E o);
 	
 	/**
 	 * Add an object into the collection using a specific ordering key
@@ -88,13 +87,4 @@ public interface Objects<E> extends Collection<E> {
 	 * @return
 	 */
 	public Iterator<E> iterator(OrderByConstants orderByType);
-	
-	/**
-	 * Removes an object by its key
-	 * 
-	 * @param key
-	 * @param value The object to be removed
-	 * @return true if object has been removed
-	 */
-	public boolean removeByKey(OdbComparable key, Object value);
 }

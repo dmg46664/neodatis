@@ -56,7 +56,7 @@ public class ChangedObjectInfo {
 		if(message!=null){
 			buffer.append(message).append(" | ");
 		}
-		if(oldCi.getId()!=newCi.getId()){
+		if(!oldCi.getOid().equals(newCi.getOid())){
 			buffer.append("old class=").append(oldCi.getFullClassName()).append(" | new class=").append(newCi.getFullClassName());
 		}else{
 			buffer.append("class=").append(oldCi.getFullClassName());	

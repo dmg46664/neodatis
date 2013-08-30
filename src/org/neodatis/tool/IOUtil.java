@@ -20,6 +20,8 @@
  */
 package org.neodatis.tool;
 
+import java.io.File;
+
 import org.neodatis.tool.wrappers.OdbSystem;
 import org.neodatis.tool.wrappers.io.OdbFile;
 
@@ -40,9 +42,35 @@ public class IOUtil {
 		} else {
 			file = new OdbFile(fileName);
 		}
-		boolean deleted = file.delete();
-		;
+		boolean deleted = false;
+		if (file.isDirectory()) {
+			deleted = deleteDirectory(file.getFullPath());
+		} else {
+			deleted = file.delete();
+		}
+
 		return deleted;
+	}
+
+	/**
+	 * @param file
+	 */
+	public static boolean deleteDirectory(String directoryName) {
+		//System.out.println("Trying to delete directory/file " + file.getFullPath());
+		File file = new File(directoryName);
+		if (file.isDirectory()) {
+			String[] children = file.list();
+			for (int i = 0; i < children.length; i++) {
+				boolean success = deleteDirectory(file.getAbsolutePath()+"/"+ children[i]);
+				//System.out.println("  <= "+success);
+				if (!success) {
+					return false;
+				}
+			}
+		}
+
+		// The directory is now empty so delete it
+		return file.delete();
 	}
 
 	public static boolean existFile(String fileName) {

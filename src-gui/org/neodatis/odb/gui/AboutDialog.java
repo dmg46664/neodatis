@@ -27,7 +27,7 @@ import java.awt.HeadlessException;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
-import org.neodatis.odb.core.Release;
+import org.neodatis.odb.Release;
 
 public class AboutDialog extends JPanel {
 

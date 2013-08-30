@@ -20,25 +20,32 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class CommitMessageResponse extends Message {
 	private boolean ok;
 	
-	public CommitMessageResponse(String baseId, String connectionId, String error){
-		super(Command.COMMIT, baseId,connectionId);
+	public CommitMessageResponse(){
+		super();
+	}
+	public CommitMessageResponse(String baseId, String sessionId, String error){
+		super(MessageType.COMMIT_RESPONSE, baseId,sessionId);
 		setError(error);
 	}
-	public CommitMessageResponse(String baseId, String connectionId, boolean ok){
-		super(Command.COMMIT, baseId,connectionId);
+	public CommitMessageResponse(String baseId, String sessionId, boolean ok){
+		super(MessageType.COMMIT_RESPONSE, baseId,sessionId);
 		this.ok = ok;
 	}
 
 
 	public boolean isOk() {
 		return ok;
+	}
+	/**
+	 * 
+	 */
+	public void setOk(boolean ok) {
+		this.ok = ok;
 	}
 
 

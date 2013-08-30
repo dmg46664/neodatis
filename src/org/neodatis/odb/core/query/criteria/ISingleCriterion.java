@@ -36,7 +36,7 @@ import org.neodatis.odb.core.layers.layer2.meta.AbstractObjectInfo;
  * An interface for all criteria
  *
  */
-public interface ISingleCriterion extends ICriterion{
+public interface ISingleCriterion extends Criterion{
 	/** Returns a list of attributes names that are involved in the query
 	 * @return The attribute names*/
 	List getAttributeNames();

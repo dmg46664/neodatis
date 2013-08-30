@@ -23,8 +23,8 @@ package org.neodatis.odb.core.layers.layer2.meta;
 
 import java.io.Serializable;
 
-import org.neodatis.odb.OID;
-import org.neodatis.odb.impl.core.layers.layer3.engine.StorageEngineConstant;
+import org.neodatis.odb.ClassOid;
+import org.neodatis.odb.ObjectOid;
 import org.neodatis.tool.wrappers.OdbTime;
 
 /**
@@ -33,32 +33,25 @@ import org.neodatis.tool.wrappers.OdbTime;
  *
  */
 public class ObjectInfoHeader implements Serializable {
-	private long position;
-	private OID previousObjectOID;
-	private OID nextObjectOID;
-    private OID classInfoId;
+	
+    private ClassOid classInfoId;
     /** Can be position(for native object) or id(for non native object, positions are positive e ids are negative*/
-    private long [] attributesIdentification;
-    private int [] attributeIds;
-    private OID oid;
+    private AttributeIdentification [] attributesIdentification;
+    private ObjectOid oid;
     private long creationDate;
     private long updateDate;
-    private int objectVersion;
+    private long objectVersion;
+    private int attributePosition;
 
-    public ObjectInfoHeader(long position, OID previousObjectOID, OID nextObjectOID, OID classInfoId, long [] attributesIdentification, int[] attributeIds) {
-		this.position = position;
+    public ObjectInfoHeader(ClassOid classInfoId, AttributeIdentification [] attributesIdentification) {
 		this.oid = null;
-		this.previousObjectOID = previousObjectOID;
-		this.nextObjectOID = nextObjectOID;
 		this.classInfoId = classInfoId;
         this.attributesIdentification = attributesIdentification;
-        this.attributeIds = attributeIds;
-        this.objectVersion = 1;
+        this.objectVersion = 0;
         this.creationDate = OdbTime.getCurrentTimeInMs();
     }
 	public ObjectInfoHeader() {
 		super();
-		this.position = -1;
 		this.oid = null;
 		this.objectVersion = 1;
 		this.creationDate = OdbTime.getCurrentTimeInMs();
@@ -66,46 +59,22 @@ public class ObjectInfoHeader implements Serializable {
 	public int getNbAttributes(){
 		return attributesIdentification.length;
 	}
-	public OID getNextObjectOID() {
-		return nextObjectOID;
+
+	public int getAttributePosition() {
+		return attributePosition;
 	}
-	public void setNextObjectOID(OID nextObjectOID) {
-		this.nextObjectOID = nextObjectOID;
-	}
-	public long getPosition() {
-		return position;
-	}
-	public void setPosition(long position) {
-		this.position = position;
+	public void setAttributePosition(int position) {
+		this.attributePosition = position;
 	}
     
-//	/**
-//     * @return Returns the classInfoId.
-//     */
-//    public long getClassInfoId() {
-//        return classInfoId;
-//    }
-//    /**
-//     * @param classInfoId The classInfoId to set.
-//     */
-//    public void setClassInfoId(long classInfoId) {
-//        this.classInfoId = classInfoId;
-//    }
-    public OID getPreviousObjectOID() {
-		return previousObjectOID;
-	}
-	public void setPreviousObjectOID(OID previousObjectOID) {
-		this.previousObjectOID = previousObjectOID;
-	}
-	public OID getClassInfoId() {
+	public ClassOid getClassInfoId() {
 		return classInfoId;
 	}
 
 	public String toString() {
         StringBuffer buffer = new StringBuffer();
         buffer.append("oid=").append(oid).append(" - ");//.append("class info id=").append(classInfoId);
-        buffer.append(" - position=").append(position).append(" | prev=").append(previousObjectOID);
-        buffer.append(" | next=").append(nextObjectOID);
+        buffer.append(" - attr position=").append(attributePosition);
         buffer.append(" attrs =[");
         if(attributesIdentification!=null){
             for(int i=0;i<attributesIdentification.length;i++){
@@ -118,29 +87,19 @@ public class ObjectInfoHeader implements Serializable {
         return buffer.toString();
     }
 
-
-	public String oidsToString() {
-        StringBuffer buffer = new StringBuffer();
-        
-        buffer.append(" [ prev=").append(String.valueOf(previousObjectOID)).append(" <- ");//.append("class info id=").append(classInfoId);
-        buffer.append("oid=").append(String.valueOf(oid));
-        buffer.append(" -> next=").append(String.valueOf(nextObjectOID)).append(" ] " );
-        return buffer.toString();
-    }
-
-    public long[] getAttributesIdentification() {
+    public AttributeIdentification[] getAttributesIdentification() {
         return attributesIdentification;
     }
 
-    public void setAttributesIdentification(long[] attributesIdentification) {
+    public void setAttributesIdentification(AttributeIdentification[] attributesIdentification) {
         this.attributesIdentification = attributesIdentification;
     }
 
-    public OID getOid() {
+    public ObjectOid getOid() {
         return oid;
     }
 
-    public void setOid(OID oid) {
+    public void setOid(ObjectOid oid) {
         this.oid = oid;
     }
 
@@ -166,41 +125,35 @@ public class ObjectInfoHeader implements Serializable {
      * @param attributeId
      * @return -1 if attribute with this id does not exist
      */
-    public long getAttributeIdentificationFromId(int attributeId){
-        if(attributeIds==null){
-        	return StorageEngineConstant.NULL_OBJECT_ID_ID;
+    public AttributeIdentification getAttributeIdentificationFromId(int attributeId){
+        if(attributesIdentification==null){
+        	return null;
         }
-    	for(int i=0;i<attributeIds.length;i++){
-            if(attributeIds[i]==attributeId){
+    	for(int i=0;i<attributesIdentification.length;i++){
+            if(attributesIdentification[i].id==attributeId){
                 return attributesIdentification[i];
             }
         }
-        return StorageEngineConstant.NULL_OBJECT_ID_ID;
+        return null;
     }
-    public long getAttributeId(int attributeIndex){
-        return attributeIds[attributeIndex];
+    public int getAttributeId(int attributeIndex){
+        return attributesIdentification[attributeIndex].id;
     }
-	public void setAttributesIds(int[] ids) {
-		attributeIds = ids;		
-	}
-	public int[] getAttributeIds() {
-		return attributeIds;
-	}
 	
-	public void setClassInfoId(OID classInfoId2) {
+	public void setClassInfoId(ClassOid classInfoId2) {
 		this.classInfoId = classInfoId2;		
 	}
-	public int getObjectVersion() {
+	public long getObjectVersion() {
 		return objectVersion;
 	}
-	public void setObjectVersion(int objectVersion) {
+	public void setObjectVersion(long objectVersion) {
 		this.objectVersion = objectVersion;
 	}
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + (int) (position ^ (position >>> 32));
-		return result;
+		if(oid==null){
+			System.out.println("debug:null oid");
+		}
+		return oid.hashCode();
 	}
 	public boolean equals(Object obj) {
 		if (this == obj)
@@ -210,8 +163,9 @@ public class ObjectInfoHeader implements Serializable {
 		if (getClass() != obj.getClass())
 			return false;
 		final ObjectInfoHeader other = (ObjectInfoHeader) obj;
-		if (position != other.position)
+		if (!oid.equals(other.oid)){
 			return false;
+		}
 		return true;
 	}
 	public void incrementVersionAndUpdateDate(){
@@ -223,14 +177,11 @@ public class ObjectInfoHeader implements Serializable {
 	public ObjectInfoHeader duplicate(){
 		ObjectInfoHeader oih = new ObjectInfoHeader();
 		oih.setAttributesIdentification(attributesIdentification);
-		oih.setAttributesIds(attributeIds);
 		oih.setClassInfoId(classInfoId);
 		oih.setCreationDate(creationDate);
-		oih.setNextObjectOID(nextObjectOID);
 		oih.setObjectVersion(objectVersion);
 		oih.setOid(oid);
-		oih.setPosition(position);
-		oih.setPreviousObjectOID(previousObjectOID);
+		oih.setAttributePosition(attributePosition);
 		oih.setUpdateDate(updateDate);
 		return oih;
 		

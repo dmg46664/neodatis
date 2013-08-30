@@ -31,4 +31,5 @@ public interface IBTreeNodeOneValuePerKey extends IBTreeNode {
 	Object getValueAt(int index);
 
 	Object search(Comparable key);
+	void setReplaceOnDuplicate(boolean yesNo);
 }

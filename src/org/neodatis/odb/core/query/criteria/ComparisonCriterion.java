@@ -21,11 +21,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.query.criteria;
 
-import org.neodatis.odb.ODBRuntimeException;
+import org.neodatis.odb.NeoDatisRuntimeException;
 import org.neodatis.odb.core.NeoDatisError;
 import org.neodatis.odb.core.layers.layer2.meta.AttributeValuesMap;
-import org.neodatis.odb.core.query.IQuery;
-import org.neodatis.odb.impl.core.layers.layer2.meta.compare.AttributeValueComparator;
+import org.neodatis.odb.core.layers.layer2.meta.compare.AttributeValueComparator;
+import org.neodatis.odb.core.query.InternalQuery;
 
 
 /**A Criterion for greater than (gt),greater or equal(ge), less than (lt) and less or equal (le)
@@ -107,11 +107,14 @@ public class ComparisonCriterion extends AbstractCriterion {
 			valueToMatch = attributeValues.getAttributeValue(attributeName);
 		}
 
-		if(valueToMatch==null){
+		if(valueToMatch==null && criterionValue==null){
+			return true;
+		}
+		if(valueToMatch==null || criterionValue ==null){
 			return false;
 		}
 		if (!(valueToMatch instanceof Comparable)) {
-			throw new ODBRuntimeException(NeoDatisError.QUERY_COMPARABLE_CRITERIA_APPLIED_ON_NON_COMPARABLE.addParameter(valueToMatch.getClass().getName()));
+			throw new NeoDatisRuntimeException(NeoDatisError.QUERY_COMPARABLE_CRITERIA_APPLIED_ON_NON_COMPARABLE.addParameter(valueToMatch.getClass().getName()));
 		}
 		Comparable comparable1 = (Comparable) valueToMatch;
 		Comparable comparable2 = (Comparable) criterionValue;
@@ -128,7 +131,7 @@ public class ComparisonCriterion extends AbstractCriterion {
 
 		}
 
-		throw new ODBRuntimeException(NeoDatisError.QUERY_UNKNOWN_OPERATOR.addParameter(comparisonType));
+		throw new NeoDatisRuntimeException(NeoDatisError.QUERY_UNKNOWN_OPERATOR.addParameter(comparisonType));
 
 	}
 	public String toString(){
@@ -158,7 +161,7 @@ public class ComparisonCriterion extends AbstractCriterion {
 		return map;
 	}
 
-	public void setQuery(IQuery query) {
+	public void setQuery(InternalQuery query) {
 		super.setQuery(query);
 		getQuery().setOptimizeObjectComparison(false);
 	}

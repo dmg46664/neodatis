@@ -20,8 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 /** A StoreMessage is used by the Client/Server mode to store an object
@@ -31,7 +29,7 @@ import org.neodatis.odb.core.server.layers.layer3.engine.Message;
  */
 public class DeleteBaseMessage extends Message {
 	public DeleteBaseMessage(String baseId){
-		super(Command.DELETE_BASE, baseId,null);
+		super(MessageType.DELETE_BASE, baseId,null);
 	}
 	public String toString() {
 		return "DeleteBase";

@@ -42,10 +42,6 @@ public class CollectionObjectInfo extends GroupObjectInfo {
 		super(null,ODBType.COLLECTION_ID);
 		realCollectionClassName = ODBType.DEFAULT_COLLECTION_CLASS_NAME;
 	}
-	public CollectionObjectInfo(Collection<AbstractObjectInfo> collection) {
-		super(collection,ODBType.COLLECTION_ID);
-		realCollectionClassName = ODBType.DEFAULT_COLLECTION_CLASS_NAME;
-	}
 
 	public CollectionObjectInfo(Collection<AbstractObjectInfo> collection, Collection<NonNativeObjectInfo> nonNativeObjects) {
 		super(collection,ODBType.COLLECTION_ID);

@@ -20,8 +20,7 @@ public class ObjectInfoHeaderListDisplay {
 		for (int i = 0; i < objectInfoHeaderList.size(); i++) {
 			oih = (ObjectInfoHeader) objectInfoHeaderList.get(i);
 			if (withDetail) {
-				buffer.append("(").append(oih.getPreviousObjectOID()).append(" <= ").append(oih.getOid()).append(" => ").append(
-						oih.getNextObjectOID()).append(") ");
+				buffer.append(oih.getOid());
 			} else {
 				buffer.append(oih.getOid()).append(" ");
 			}

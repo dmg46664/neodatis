@@ -31,8 +31,9 @@ import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
  * @author olivier
  *
  */
+
 public interface FullInstantiationHelper {
-	
+
 	
 	/**
 	 * 

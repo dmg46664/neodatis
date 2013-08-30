@@ -23,7 +23,7 @@ package org.neodatis.odb.core.layers.layer2.meta;
 
 import java.io.Serializable;
 
-import org.neodatis.tool.wrappers.OdbClassUtil;
+import org.neodatis.odb.ClassOid;
 
 /**
  * to keep informations about an attribute of a class :
@@ -39,35 +39,36 @@ import org.neodatis.tool.wrappers.OdbClassUtil;
  */
 public class ClassAttributeInfo implements Serializable{
 
+	//private transient static int nb=0;
 	private int id;
-	private ClassInfo classInfo;
+	//private ClassInfo classInfo;
+	/** The oid of the class that owns this attribute */
+	private ClassOid ownerClassInfoOid;
 
 	private String className;
-
-	private String packageName;
 
 	private String name;
 
 	private boolean isIndex;
 	
-	private String fullClassName;
-	
 	private ODBType attributeType;
-	/** can be null*/
-	private transient Class nativeClass;
+	/** can be null if attribute is non native*/
+	private Class nativeClass;
+	/** The attribute class oid : the type of the attribute. Null is attribute is native */
+	private ClassOid attributeClassOid;
 
 	public ClassAttributeInfo() {
 	}
-	public ClassAttributeInfo(int attributeId , String name, String fullClassName, ClassInfo info) {
-		this(attributeId,name,null,fullClassName,info);
+	public ClassAttributeInfo(int attributeId , String name, String fullClassName, ClassOid attributeCiOid, ClassOid ownerCiOid) {
+		this(attributeId,name,null,fullClassName,attributeCiOid,ownerCiOid);
 	}
 
-	public ClassAttributeInfo(int attributeId , String name, Class nativeClass, String fullClassName, ClassInfo info) {
+	public ClassAttributeInfo(int attributeId , String name, Class nativeClass, String fullClassName, ClassOid attributeCiOid, ClassOid ownerCiOid) {
 		super();
 		this.id = attributeId;
 		this.name = name;
 		this.nativeClass = nativeClass;
-		setFullClassName(fullClassName);
+		this.className = fullClassName;
 		if(nativeClass!=null){
 			attributeType = ODBType.getFromClass(nativeClass);
 		}else{
@@ -75,16 +76,14 @@ public class ClassAttributeInfo implements Serializable{
 				attributeType = ODBType.getFromName(fullClassName);
 			}
 		}
-		classInfo = info;
+		if(attributeCiOid!=null){
+			attributeClassOid = attributeCiOid;
+		}
+		if(ownerCiOid!=null){
+			ownerClassInfoOid = ownerCiOid;
+		}
+		//classInfo = info;
 		isIndex = false;
-	}
-
-	public ClassInfo getClassInfo() {
-		return classInfo;
-	}
-
-	public void setClassInfo(ClassInfo classInfo) {
-		this.classInfo = classInfo;
 	}
 
 	public boolean isIndex() {
@@ -110,15 +109,16 @@ public class ClassAttributeInfo implements Serializable{
         return !attributeType.isNative();
     }
 
-	public void setFullClassName(String fullClassName) {
-		this.fullClassName = fullClassName;
-		setClassName(OdbClassUtil.getClassName(fullClassName));
-		setPackageName(OdbClassUtil.getPackageName(fullClassName));
-	}
+    public ClassOid getAttributeClassOid(){
+    	return attributeClassOid;
+    }
+    public void setAttributeClassOid(ClassOid coid){
+    	this.attributeClassOid = coid;
+    }
 
 	public String toString() {
 		StringBuffer buffer = new StringBuffer();
-		buffer.append("id=").append(id).append(" name=").append(name).append(" | is Native=").append(isNative()).append(" | type=").append(getFullClassname()).append(" | isIndex=").append(isIndex);
+		buffer.append("id=").append(id).append(" name=").append(name).append(" | is Native=").append(isNative()).append(" | type=").append(getClassName()).append(" | isIndex=").append(isIndex);
 		return buffer.toString();
 	}
 
@@ -128,27 +128,6 @@ public class ClassAttributeInfo implements Serializable{
 
 	public void setClassName(String className) {
 		this.className = className;
-	}
-
-	public String getPackageName() {
-		return packageName;
-	}
-
-	public void setPackageName(String packageName) {
-		this.packageName = packageName;
-	}
-
-	public String getFullClassname(){
-		if(fullClassName!=null){
-			return fullClassName;
-		}
-		
-		if(packageName==null || packageName.length()==0){
-			fullClassName = className;
-			return className;
-		}
-		fullClassName = packageName+"."+className;
-		return fullClassName;
 	}
 
 	public void setAttributeType(ODBType attributeType) {
@@ -165,6 +144,15 @@ public class ClassAttributeInfo implements Serializable{
 	}
 	public void setId(int id) {
 		this.id = id;
+	}
+	/**
+	 * @param ciId
+	 */
+	public void setOwnerClassInfoOid(ClassOid ciId) {
+		this.ownerClassInfoOid = ciId;
+	}
+	public ClassOid getOwnerClassInfoOid() {
+		return this.ownerClassInfoOid;
 	}
 	
 }

@@ -21,29 +21,30 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.query.criteria;
 
+import java.util.HashSet;
 import java.util.Iterator;
 
 import org.neodatis.odb.core.layers.layer2.meta.AttributeValuesMap;
-import org.neodatis.odb.core.query.IQuery;
+import org.neodatis.odb.core.query.InternalQuery;
 import org.neodatis.tool.wrappers.list.IOdbList;
 import org.neodatis.tool.wrappers.list.OdbArrayList;
 
 public abstract class ComposedExpression extends AbstractExpression {
-	protected IOdbList<ICriterion> criteria;
+	protected IOdbList<Criterion> criteria;
 	
 	public ComposedExpression(){
-		criteria = new OdbArrayList<ICriterion>(5);
+		criteria = new OdbArrayList<Criterion>(5);
 	}
-	public ComposedExpression add(ICriterion criterion){
+	public ComposedExpression add(Criterion criterion){
 		criteria.add(criterion);
 		return this;
 	}
-	public IOdbList<String> getAllInvolvedFields() {
+	public HashSet<String> getAllInvolvedFields() {
 		Iterator iterator = criteria.iterator();;
-		ICriterion criterion = null;
-		IOdbList<String> fields = new OdbArrayList<String>(10);
+		Criterion criterion = null;
+		HashSet<String> fields = new HashSet<String>();
 		while(iterator.hasNext()){
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			fields.addAll(criterion.getAllInvolvedFields());
 		}
 		return fields;
@@ -54,9 +55,9 @@ public abstract class ComposedExpression extends AbstractExpression {
 	public AttributeValuesMap getValues() {
 		AttributeValuesMap map = new AttributeValuesMap();
 		Iterator iterator = criteria.iterator();;
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		while(iterator.hasNext()){
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			map.putAll(criterion.getValues());
 		}
 		return map;
@@ -64,24 +65,24 @@ public abstract class ComposedExpression extends AbstractExpression {
 	public int getNbCriteria(){
 		return criteria.size();
 	}
-	public ICriterion getCriterion(int index){
+	public Criterion getCriterion(int index){
 		return criteria.get(index);
 	}
 	public void ready() {
 		Iterator iterator = criteria.iterator();;
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		while(iterator.hasNext()){
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			criterion.setQuery(getQuery());
 			criterion.ready();
 		}
 	}
-	public void setQuery(IQuery query) {
+	public void setQuery(InternalQuery query) {
 		super.setQuery(query);
 		Iterator iterator = criteria.iterator();;
-		ICriterion criterion = null;
+		Criterion criterion = null;
 		while(iterator.hasNext()){
-			criterion = (ICriterion) iterator.next();
+			criterion = (Criterion) iterator.next();
 			criterion.setQuery(getQuery());
 		}
 	}

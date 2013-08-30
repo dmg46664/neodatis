@@ -1,3 +1,8 @@
 Manifest-Version: 1.0
+Ant-Version: Apache Ant 1.7.1
+Created-By: 1.5.0_26-156 (Apple Inc.)
+Built-By: NeoDatis team
 Main-Class: org.neodatis.odb.gui.ODBExplorerMain
-Premain-Class: org.neodatis.odb.instrumentation.agent.AgentMain
+Implementation-Version: 2.2.beta1-252
+Built-Date: 02-11-2010-19-49-13
+

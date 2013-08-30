@@ -20,9 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.query.IValuesQuery;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.core.query.ValuesQuery;
 
 /**
  * A message to get object values
@@ -30,22 +28,22 @@ import org.neodatis.odb.core.server.layers.layer3.engine.Message;
  *
  */
 public class GetObjectValuesMessage extends Message {
-	private IValuesQuery query;
+	private ValuesQuery query;
 	private int startIndex;
 	private int endIndex;
 	
-	public GetObjectValuesMessage(String baseId, String connectionId, IValuesQuery query, int startIndex, int endIndex){
-		super(Command.GET_OBJECT_VALUES, baseId,connectionId);
+	public GetObjectValuesMessage(String baseId, String connectionId, ValuesQuery query, int startIndex, int endIndex){
+		super(MessageType.GET_OBJECT_VALUES, baseId,connectionId);
 		this.query = query;		
 		this.startIndex = startIndex;
 		this.endIndex = endIndex;
 	}
 
-	public GetObjectValuesMessage(String baseId, String connectionId, IValuesQuery query){
+	public GetObjectValuesMessage(String baseId, String connectionId, ValuesQuery query){
 		this(baseId,connectionId,query,-1,-1);
 	}
 
-	public IValuesQuery getQuery() {
+	public ValuesQuery getQuery() {
 		return query;
 	}
 

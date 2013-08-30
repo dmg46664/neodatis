@@ -6,7 +6,7 @@ import java.util.Collection;
 
 /**
  * A super class for CollectionObjectInfo, MapObjectInfo and ArrayObjectInfo. It keeps a list
- * of reference to non native objects contained in theses structures
+ * of references to non native objects contained in theses structures
  * @author osmadja
  *
  */

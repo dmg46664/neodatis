@@ -21,40 +21,47 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.query;
 
-import org.neodatis.odb.ODBRuntimeException;
-import org.neodatis.odb.OID;
+import java.math.BigInteger;
+
+import org.neodatis.OrderByConstants;
+import org.neodatis.odb.NeoDatisRuntimeException;
+import org.neodatis.odb.ObjectOid;
+import org.neodatis.odb.Objects;
+import org.neodatis.odb.Query;
+import org.neodatis.odb.QueryParameters;
 import org.neodatis.odb.core.NeoDatisError;
-import org.neodatis.odb.core.OrderByConstants;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
-import org.neodatis.odb.core.query.execution.IQueryExecutionPlan;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.tool.wrappers.OdbString;
 
-public abstract class AbstractQuery implements IQuery {
+public abstract class AbstractQuery implements InternalQuery {
 
 	protected String [] orderByFields;
 	protected OrderByConstants orderByType;
-	protected transient IStorageEngine storageEngine;
+	protected transient SessionEngine engine;
 	protected IQueryExecutionPlan executionPlan;
 	protected boolean polymorphic;
 	/** When set to true, object comparison are done using OID, else comparison are done comparing the whole object, default is true*/
 	private boolean optimizeObjectComparison;
 	
 	/** The OID attribute is used when the query must be restricted the object with this OID*/
-	protected OID oidOfObjectToQuery;
+	protected ObjectOid oidOfObjectToQuery;
+	
+	protected QueryParameters queryParameters;
 
 	public AbstractQuery(){
 		orderByType = OrderByConstants.ORDER_BY_NONE;
 		polymorphic = false;
 		optimizeObjectComparison = true;
+		this.queryParameters = new QueryParameters();
 	}
-	public IQuery orderByDesc(String fields) {
+	public Query orderByDesc(String fields) {
 		orderByType = OrderByConstants.ORDER_BY_DESC;
 		orderByFields = OdbString.split(fields,",");
 		return this;
 				
 	}
 
-	public IQuery orderByAsc(String fields) {
+	public Query orderByAsc(String fields) {
 		orderByType = OrderByConstants.ORDER_BY_ASC;
 		orderByFields = OdbString.split(fields,",");
 		return this;
@@ -79,16 +86,16 @@ public abstract class AbstractQuery implements IQuery {
 	public boolean hasOrderBy(){
 		return !orderByType.isOrderByNone();
 	}
-	public IStorageEngine getStorageEngine(){
-		return storageEngine;
+	public SessionEngine getSessionEngine(){
+		return engine;
 	}
-	public void setStorageEngine(IStorageEngine storageEngine){
-		this.storageEngine = storageEngine;
+	public void setSessionEngine(SessionEngine engine){
+		this.engine = engine;
 	}
 	
 	public IQueryExecutionPlan getExecutionPlan() {
 		if(executionPlan==null){
-			throw new ODBRuntimeException(NeoDatisError.EXECUTION_PLAN_IS_NULL_QUERY_HAS_NOT_BEEN_EXECUTED);
+			throw new NeoDatisRuntimeException(NeoDatisError.EXECUTION_PLAN_IS_NULL_QUERY_HAS_NOT_BEEN_EXECUTED);
 		}
 		return executionPlan;
 	}
@@ -98,14 +105,14 @@ public abstract class AbstractQuery implements IQuery {
 	public boolean isPolymorphic() {
 		return polymorphic;
 	}
-	public IQuery setPolymorphic(boolean yes) {
+	public Query setPolymorphic(boolean yes) {
 		polymorphic = yes;
 		return this;
 	}
-	public OID getOidOfObjectToQuery() {
+	public ObjectOid getOidOfObjectToQuery() {
 		return oidOfObjectToQuery;
 	}
-	public void setOidOfObjectToQuery(OID oidOfObjectToQuery) {
+	public void setOidOfObjectToQuery(ObjectOid oidOfObjectToQuery) {
 		this.oidOfObjectToQuery = oidOfObjectToQuery;
 	}
 	/** Returns true is query must apply on a single object OID
@@ -121,9 +128,22 @@ public abstract class AbstractQuery implements IQuery {
 	public boolean optimizeObjectComparison() {
 		return optimizeObjectComparison;
 	}
-	public IQuery setOptimizeObjectComparison(boolean yesNo){
+	public Query setOptimizeObjectComparison(boolean yesNo){
 		this.optimizeObjectComparison = yesNo;
 		return this;
 	}
+	public QueryParameters getQueryParameters() {
+		return queryParameters;
+	}
 	
+	public <T>Objects<T> objects(){
+		return engine.execute(this);
+	}
+	
+	/**
+	 * @return
+	 */
+	public BigInteger count(){
+		return engine.count(this);
+	}
 }

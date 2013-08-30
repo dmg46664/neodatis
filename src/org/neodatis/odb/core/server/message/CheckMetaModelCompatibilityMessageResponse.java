@@ -21,20 +21,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 package org.neodatis.odb.core.server.message;
 
 import org.neodatis.odb.core.layers.layer2.meta.MetaModel;
-import org.neodatis.odb.core.layers.layer3.engine.CheckMetaModelResult;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
+import org.neodatis.odb.core.refactor.CheckMetaModelResult;
 
 public class CheckMetaModelCompatibilityMessageResponse extends Message{
 	private CheckMetaModelResult result;
 	private MetaModel updatedMetaModel;
 	public CheckMetaModelCompatibilityMessageResponse(String baseId, String sessionId, CheckMetaModelResult result, MetaModel metaModel) {
-		super(Command.CHECK_META_MODEL_COMPATIBILITY,baseId,sessionId);
+		super(MessageType.CHECK_META_MODEL_COMPATIBILITY,baseId,sessionId);
 		this.result = result;
 		this.updatedMetaModel = metaModel;
 	}
 	public CheckMetaModelCompatibilityMessageResponse(String baseId,String sessionId,  String error) {
-		super(Command.CHECK_META_MODEL_COMPATIBILITY,baseId,sessionId);
+		super(MessageType.CHECK_META_MODEL_COMPATIBILITY,baseId,sessionId);
 		setError(error);
 	}
 	public String toString() {

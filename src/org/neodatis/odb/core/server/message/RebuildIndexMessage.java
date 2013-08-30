@@ -20,8 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class RebuildIndexMessage extends Message {
@@ -30,7 +28,7 @@ public class RebuildIndexMessage extends Message {
 	protected boolean verbose;
 	
 	public RebuildIndexMessage(String baseId, String connectionId, String className, String indexName, boolean verbose){
-		super(Command.REBUILD_INDEX, baseId,connectionId);
+		super(MessageType.REBUILD_INDEX, baseId,connectionId);
 		this.className = className;
 		this.indexName = indexName;
 		this.verbose = verbose;

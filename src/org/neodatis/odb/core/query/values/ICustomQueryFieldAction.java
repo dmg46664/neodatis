@@ -1,6 +1,6 @@
 package org.neodatis.odb.core.query.values;
 
-import org.neodatis.odb.core.query.execution.IQueryFieldAction;
+import org.neodatis.odb.core.query.IQueryFieldAction;
 
 
 /**

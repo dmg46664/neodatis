@@ -20,8 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class AddIndexMessage extends Message {
@@ -31,8 +29,11 @@ public class AddIndexMessage extends Message {
 	protected boolean acceptMultipleValuesForSameKey;
 	protected boolean verbose;
 	
-	public AddIndexMessage(String baseId, String connectionId, String className, String indexName, String [] fieldNames, boolean acceptMultipleValuesForSameKey, boolean verbose){
-		super(Command.ADD_UNIQUE_INDEX, baseId,connectionId);
+	public AddIndexMessage(){
+		super();
+	}
+	public AddIndexMessage(String baseId, String sessionId, String className, String indexName, String [] fieldNames, boolean acceptMultipleValuesForSameKey, boolean verbose){
+		super(MessageType.ADD_UNIQUE_INDEX, baseId,sessionId);
 		this.className = className;
 		this.indexFieldNames = fieldNames;
 		this.indexName = indexName;
@@ -69,6 +70,30 @@ public class AddIndexMessage extends Message {
 
 	public void setVerbose(boolean verbose) {
 		this.verbose = verbose;
+	}
+	/**
+	 * @param indexName
+	 */
+	public void setIndexName(String indexName) {
+		this.indexName = indexName;
+	}
+	/**
+	 * @param acceptMultiple
+	 */
+	public void setAcceptMultipleValue(boolean acceptMultiple) {
+		this.acceptMultipleValuesForSameKey = acceptMultiple;
+	}
+	/**
+	 * @param fields
+	 */
+	public void setFieldNames(String[] fields) {
+		this.indexFieldNames = fields;
+	}
+	/**
+	 * @param className
+	 */
+	public void setClassName(String className) {
+		this.className = className;
 	}
 	
 	

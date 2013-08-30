@@ -44,7 +44,7 @@ public abstract class BTreeNodeMultipleValuesPerKey extends AbstractBTreeNode im
 		return (List) values[index];
 	}
 
-	public void insertKeyAndValue(Comparable key, Object value) {
+	public boolean insertKeyAndValue(Comparable key, Object value) {
 
 		int position = getPositionOfKey(key);
 		boolean addToExistingCollection = false;
@@ -68,6 +68,7 @@ public abstract class BTreeNodeMultipleValuesPerKey extends AbstractBTreeNode im
 		if (!addToExistingCollection) {
 			nbKeys++;
 		}
+		return true;
 	}
 
 	/**

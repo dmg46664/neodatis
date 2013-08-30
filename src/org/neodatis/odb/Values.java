@@ -22,8 +22,7 @@ package org.neodatis.odb;
 
 import java.util.Iterator;
 
-import org.neodatis.odb.core.OrderByConstants;
-import org.neodatis.tool.wrappers.OdbComparable;
+import org.neodatis.OrderByConstants;
 
 /**
  * The main interface of all Object Values query results of NeoDatis ODB
@@ -46,7 +45,7 @@ public interface Values extends Objects<ObjectValues> {
 	 * 
 	 * @return
 	 */
-	public ObjectValues getFirst();
+	public ObjectValues first();
 
 	/**
 	 * Reset the internal iterator of the collection
@@ -60,7 +59,7 @@ public interface Values extends Objects<ObjectValues> {
 	 * @param object
 	 * @return
 	 */
-	public boolean addWithKey(OdbComparable key, ObjectValues object);
+	public boolean addWithKey(Comparable key, ObjectValues object);
 
 	/**
 	 * Add an object into the collection using a specific ordering key

@@ -37,13 +37,12 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
+import org.neodatis.odb.NeoDatis;
 import org.neodatis.odb.ODB;
-import org.neodatis.odb.ODBFactory;
-import org.neodatis.odb.core.query.IQuery;
-import org.neodatis.odb.core.query.criteria.Where;
+import org.neodatis.odb.Query;
+import org.neodatis.odb.core.query.criteria.W;
 import org.neodatis.odb.gui.LoggerPanel;
 import org.neodatis.odb.gui.Messages;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
 import org.neodatis.tool.ILogger;
 
 public class RemoteConnectionPanel extends ConnectionPanel implements ActionListener {
@@ -76,7 +75,8 @@ public class RemoteConnectionPanel extends ConnectionPanel implements ActionList
 			v = new Vector<RemoteConnection>(getRecentRemoteConnections());
 		} catch (Exception e) {
 			String error = "Error while loading recent conections";
-			logger.error(error);
+			//logger.error(error);
+			v = new Vector<RemoteConnection>();
 		}
 		cbConnections = new JComboBox(v);
 		cbConnections.setActionCommand("choose-recent");
@@ -132,8 +132,8 @@ public class RemoteConnectionPanel extends ConnectionPanel implements ActionList
 	private Collection<RemoteConnection> getRecentRemoteConnections() throws Exception {
 		ODB odb = null;
 		try {
-			odb = ODBFactory.open(Constant.CONNECT_FILE_NAME);
-			return odb.getObjects(RemoteConnection.class, true);
+			odb = NeoDatis.open(Constant.CONNECT_FILE_NAME);
+			return odb.query(RemoteConnection.class).objects();
 		} finally {
 			if (odb != null) {
 				odb.close();
@@ -144,10 +144,9 @@ public class RemoteConnectionPanel extends ConnectionPanel implements ActionList
 	private boolean existConnection(String host, int port, String user) throws Exception {
 		ODB odb = null;
 		try {
-			odb = ODBFactory.open(Constant.CONNECT_FILE_NAME);
-			IQuery query = new CriteriaQuery(RemoteConnection.class, Where.and().add(Where.equal("host", host)).add(
-					Where.equal("port", port)).add(Where.equal("user", user)));
-			return !odb.getObjects(query).isEmpty();
+			odb = NeoDatis.open(Constant.CONNECT_FILE_NAME);
+			Query query = odb.query(RemoteConnection.class, W.equal("host", host).and(W.equal("port", port).and(W.equal("user", user))));
+			return !query.objects().isEmpty();
 		} finally {
 			if (odb != null) {
 				odb.close();
@@ -213,7 +212,7 @@ public class RemoteConnectionPanel extends ConnectionPanel implements ActionList
 	private void saveConnection(Connection connection) throws Exception {
 		ODB odb = null;
 		try {
-			odb = ODBFactory.open(Constant.CONNECT_FILE_NAME);
+			odb = NeoDatis.open(Constant.CONNECT_FILE_NAME);
 			odb.store(connection);
 		} finally {
 			if (odb != null) {

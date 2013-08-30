@@ -26,9 +26,10 @@ public class Test implements NodeEventListener {
 	public static void main(String[] args) throws IOException {
 		System.out.println("building");
 		NodeEventListener nel = new Test();
-		XMLGenerator.addListener(nel);
-		XMLGenerator.setIncrementalWriteOn("testi.xml");
-		XMLNode root = XMLGenerator.createRoot("odb");
+		XMLGenerator xmlGenerator = new XMLGenerator(null);
+		xmlGenerator.addListener(nel);
+		xmlGenerator.setIncrementalWriteOn("testi.xml");
+		XMLNode root = xmlGenerator.createRoot("odb");
 		root.addAttribute("name", "test.odb").addAttribute("creation-date", "09/05/2006");
 		root.endHeader();
 		XMLNode metaModel = root.createNode("meta-model").addAttribute("nb-classes", "3");
@@ -44,7 +45,7 @@ public class Test implements NodeEventListener {
 		metaModel.end();
 		root.end();
 		// XMLGenerator.writeNodeToFile(root,"test.xml");
-		XMLGenerator.end();
+		xmlGenerator.end();
 		// System.out.println(root.toString());
 		System.out.println("done");
 

@@ -26,18 +26,18 @@ import javax.swing.tree.TreeNode;
 
 import org.neodatis.odb.core.layers.layer2.meta.ClassAttributeInfo;
 import org.neodatis.odb.core.layers.layer2.meta.ClassInfo;
-import org.neodatis.odb.core.layers.layer3.IStorageEngine;
+import org.neodatis.odb.core.session.SessionEngine;
 import org.neodatis.odb.gui.GuiConfiguration;
 
 public class ClassHierarchyModel extends DefaultTreeModel {
-	private IStorageEngine engine;
+	private SessionEngine engine;
 
-	public ClassHierarchyModel(IStorageEngine engine, TreeNode node) {
+	public ClassHierarchyModel(SessionEngine engine, TreeNode node) {
 		super(node);
 		this.engine = engine;
 	}
 
-	public void updateEngine(IStorageEngine engine) {
+	public void updateEngine(SessionEngine engine) {
 		this.engine = engine;
 		// We should fire some event to notify listeners to rebuild the tree
 		fireTreeStructureChanged(getRoot(), new Object[] { getRoot() }, new int[] { 0 }, new Object[] { getChild(getRoot(), 0) });
@@ -51,9 +51,9 @@ public class ClassHierarchyModel extends DefaultTreeModel {
 	public Object getChild(Object parent, int index) {
 		if (parent instanceof DefaultMutableTreeNode) {
 			if (GuiConfiguration.displayAllClasses()) {
-				return new ClassInfoWrapper((ClassInfo) engine.getSession(true).getMetaModel().getAllClasses().get(index));
+				return new ClassInfoWrapper((ClassInfo) engine.getSession().getMetaModel().getAllClasses().get(index));
 			}
-			return new ClassInfoWrapper(engine.getSession(true).getMetaModel().slowGetUserClassInfo(index));
+			return new ClassInfoWrapper(engine.getSession().getMetaModel().slowGetUserClassInfo(index));
 		}
 		if (parent instanceof ClassInfoWrapper) {
 			ClassInfoWrapper ciw = (ClassInfoWrapper) parent;
@@ -63,9 +63,9 @@ public class ClassHierarchyModel extends DefaultTreeModel {
 		if (parent instanceof ClassAttributeInfoWrapper) {
 			ClassAttributeInfoWrapper caiw = (ClassAttributeInfoWrapper) parent;
 			ClassAttributeInfo cai = caiw.getCai();
-			String name = cai.getFullClassname();
+			String name = cai.getClassName();
 			if(cai.getAttributeType().isArray()){
-				name = String.format("%s of %s", cai.getFullClassname(),cai.getAttributeType().getSubType().getName());
+				name = String.format("%s of %s", cai.getClassName(),cai.getAttributeType().getSubType().getName());
 			}
 
 			switch (index) {
@@ -87,9 +87,9 @@ public class ClassHierarchyModel extends DefaultTreeModel {
 	public int getChildCount(Object parent) {
 		if (parent instanceof DefaultMutableTreeNode) {
 			if (GuiConfiguration.displayAllClasses()) {
-				return engine.getSession(true).getMetaModel().getNumberOfClasses();
+				return engine.getSession().getMetaModel().getNumberOfClasses();
 			}
-			return engine.getSession(true).getMetaModel().getNumberOfUserClasses();
+			return engine.getSession().getMetaModel().getNumberOfUserClasses();
 		}
 		if (parent instanceof ClassInfoWrapper) {
 			ClassInfoWrapper ciw = (ClassInfoWrapper) parent;
@@ -114,9 +114,9 @@ public class ClassHierarchyModel extends DefaultTreeModel {
 	public int getIndexOfChild(Object parent, Object child) {
 		if (parent instanceof String) {
 			if (GuiConfiguration.displayAllClasses()) {
-				return engine.getSession(true).getMetaModel().getAllClasses().indexOf(child);
+				return engine.getSession().getMetaModel().getAllClasses().indexOf(child);
 			}
-			return engine.getSession(true).getMetaModel().slowGetUserClassInfoIndex((ClassInfo) child);
+			return engine.getSession().getMetaModel().slowGetUserClassInfoIndex((ClassInfo) child);
 
 		}
 		if (parent instanceof ClassInfo) {

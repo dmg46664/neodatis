@@ -20,13 +20,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.server.message;
 
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 
 
 public class RollbackMessage extends Message {
-	public RollbackMessage(String baseId, String connectionId){
-		super(Command.ROLLBACK, baseId,connectionId);
+	public RollbackMessage(){
+		super();
+	}
+	public RollbackMessage(String baseId, String sessionId){
+		super(MessageType.ROLLBACK, baseId,sessionId);
 	}
 	public String toString() {
 		return "Rollback";

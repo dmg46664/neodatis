@@ -21,12 +21,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 */
 package org.neodatis.odb.core.query.criteria;
 
+import java.util.HashSet;
+
 import org.neodatis.odb.core.layers.layer2.meta.AbstractObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.AttributeValuesMap;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
-import org.neodatis.odb.core.query.IQuery;
-import org.neodatis.tool.wrappers.list.IOdbList;
-import org.neodatis.tool.wrappers.list.OdbArrayList;
+import org.neodatis.odb.core.query.InternalQuery;
 
 /**
  * An adapter for Criterion.
@@ -34,17 +34,18 @@ import org.neodatis.tool.wrappers.list.OdbArrayList;
  * @author olivier s
  *
  */
-public abstract class AbstractCriterion implements ICriterion {
+public abstract class AbstractCriterion implements Criterion {
+
+	/** The query containing the criterion*/
+	private InternalQuery query;
+
+	/** The name of the attribute involved by this criterion*/
+	protected String attributeName;
+
 
 	public boolean canUseIndex() {
 		return false;
 	}
-
-	/** The query containing the criterion*/
-	private IQuery query;
-
-	/** The name of the attribute involved by this criterion*/
-	protected String attributeName;
 
 	public AbstractCriterion(String fieldName) {
 		this.attributeName = fieldName;
@@ -62,11 +63,11 @@ public abstract class AbstractCriterion implements ICriterion {
 
 	abstract public boolean match(Object valueToMatch);
 
-	public IExpression and(ICriterion criterion) {
+	public IExpression and(Criterion criterion) {
 		return new And().add(this).add(criterion);
 	}
 
-	public IExpression or(ICriterion criterion) {
+	public IExpression or(Criterion criterion) {
 		return new Or().add(this).add(criterion);
 	}
 
@@ -74,13 +75,13 @@ public abstract class AbstractCriterion implements ICriterion {
 		return new Not(this);
 	}
 
-	/** Gets thes whole query 
+	/** Gets the whole query 
 	 * @return The owner query*/
-	public IQuery getQuery() {
+	public InternalQuery getQuery() {
 		return query;
 	}
 
-	public void setQuery(IQuery query) {
+	public void setQuery(InternalQuery query) {
 		this.query = query;
 	}
 
@@ -97,8 +98,8 @@ public abstract class AbstractCriterion implements ICriterion {
 	 * @return The list of involved field of the criteria
 	 * 
 	 */
-	public IOdbList<String> getAllInvolvedFields() {
-		IOdbList<String> l = new OdbArrayList<String>(1);
+	public HashSet<String> getAllInvolvedFields() {
+		HashSet<String> l = new HashSet<String>();
 		l.add(attributeName);
 		return l;
 	}

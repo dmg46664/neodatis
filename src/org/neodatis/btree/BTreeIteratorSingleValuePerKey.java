@@ -1,6 +1,6 @@
 package org.neodatis.btree;
 
-import org.neodatis.odb.core.OrderByConstants;
+import org.neodatis.OrderByConstants;
 
 /**
  * An iterator to iterate over NeoDatis BTree.

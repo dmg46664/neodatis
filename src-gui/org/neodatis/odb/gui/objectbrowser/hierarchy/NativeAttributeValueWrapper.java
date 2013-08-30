@@ -24,23 +24,27 @@ import java.text.ParseException;
 
 import org.neodatis.odb.core.layers.layer2.meta.AbstractObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.AtomicNativeObjectInfo;
+import org.neodatis.odb.core.layers.layer2.meta.AttributeIdentification;
 import org.neodatis.odb.core.layers.layer2.meta.EnumNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeNullObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NonNativeObjectInfo;
 import org.neodatis.odb.core.layers.layer2.meta.NullNativeObjectInfo;
-import org.neodatis.odb.impl.tool.ObjectTool;
+import org.neodatis.odb.core.layers.layer4.OidGenerator;
+import org.neodatis.odb.core.session.Session;
+import org.neodatis.odb.tool.ObjectTool;
 
 public class NativeAttributeValueWrapper implements Wrapper {
 	private String name;
 	private Object value;
-	private long attributePosition;
+	private AttributeIdentification attributeIdentification;
 	private NonNativeObjectInfo parent;
-
-	public NativeAttributeValueWrapper(NonNativeObjectInfo nnoi, String name, Object value, long position) {
+	private ObjectTool objectTool;
+	public NativeAttributeValueWrapper(NonNativeObjectInfo nnoi, String name, Object value, AttributeIdentification attributeIdentification, Session session) {
 		this.parent = nnoi;
 		this.name = name;
 		this.value = value;
-		this.attributePosition = position;
+		this.attributeIdentification = attributeIdentification;
+		this.objectTool = new ObjectTool(session);
 	}
 
 	public String toString() {
@@ -55,7 +59,7 @@ public class NativeAttributeValueWrapper implements Wrapper {
 			}
 			if (value instanceof AtomicNativeObjectInfo) {
 				AtomicNativeObjectInfo anoi = (AtomicNativeObjectInfo) value;
-				return name + " = " + ObjectTool.atomicNativeObjectToString(anoi, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
+				return name + " = " + objectTool.atomicNativeObjectToString(anoi, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
 			}
 
 			if (value instanceof EnumNativeObjectInfo) {
@@ -76,14 +80,14 @@ public class NativeAttributeValueWrapper implements Wrapper {
 			value = "null";
 		}
 		AtomicNativeObjectInfo anoi = (AtomicNativeObjectInfo) value;
-		return ObjectTool.atomicNativeObjectToString(anoi, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
+		return objectTool.atomicNativeObjectToString(anoi, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
 	}
 
 	/**
 	 * @return Returns the attributePosition.
 	 */
-	public long getAttributePosition() {
-		return attributePosition;
+	public AttributeIdentification getAttributeIdentification() {
+		return attributeIdentification;
 	}
 
 	/**
@@ -103,7 +107,7 @@ public class NativeAttributeValueWrapper implements Wrapper {
 	public void setNewValue(String newValue) throws NumberFormatException, ParseException {
 		AtomicNativeObjectInfo anoi = (AtomicNativeObjectInfo) value;
 		int odbTypeId = anoi.getOdbTypeId();
-		Object o = ObjectTool.stringToObject(odbTypeId, newValue, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
+		Object o = objectTool.stringToObject(odbTypeId, newValue, ObjectTool.ID_CALLER_IS_ODB_EXPLORER);
 		anoi.setObject(o);
 	}
 

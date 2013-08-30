@@ -21,16 +21,19 @@
 package org.neodatis.odb;
 
 import java.math.BigInteger;
+import java.util.Collection;
 
-import org.neodatis.odb.core.layers.layer3.IRefactorManager;
-import org.neodatis.odb.core.query.IQuery;
-import org.neodatis.odb.core.query.IValuesQuery;
-import org.neodatis.odb.core.query.criteria.ICriterion;
+import org.neodatis.odb.core.event.NeoDatisEventListener;
+import org.neodatis.odb.core.query.ValuesQuery;
+import org.neodatis.odb.core.query.criteria.CriteriaQuery;
+import org.neodatis.odb.core.query.criteria.Criterion;
+import org.neodatis.odb.core.query.nq.NativeQuery;
+import org.neodatis.odb.core.query.values.ValuesCriteriaQuery;
 import org.neodatis.odb.core.trigger.DeleteTrigger;
 import org.neodatis.odb.core.trigger.InsertTrigger;
+import org.neodatis.odb.core.trigger.OIDTrigger;
 import org.neodatis.odb.core.trigger.SelectTrigger;
 import org.neodatis.odb.core.trigger.UpdateTrigger;
-import org.neodatis.odb.impl.core.query.criteria.CriteriaQuery;
 
 /**
  * The main ODB public interface: It is what the user sees.
@@ -61,7 +64,7 @@ public interface ODB {
 	 * @param object
 	 *            A plain Java Object
 	 */
-	OID store(Object object);
+	ObjectOid store(Object object);
 
 	/**
 	 * Get all objects of a specific type
@@ -69,73 +72,43 @@ public interface ODB {
 	 * @param clazz
 	 *            The type of the objects
 	 * @return The list of objects
+	 * @deprecated Use odb.query(Class clazz).objects(); instead
 	 */
 	<T> Objects<T> getObjects(Class clazz);
 
-	/**
-	 * Get all objects of a specific type
-	 * 
-	 * @param clazz
-	 *            The type of the objects
-	 * @param inMemory
-	 *            if true, preload all objects,if false,load on demand
-	 * @return The list of objects
-	 */
-	<T> Objects<T> getObjects(Class clazz, boolean inMemory);
-
-	/**
-	 * 
-	 * @param clazz
-	 *            The type of the objects
-	 * @param inMemory
-	 *            if true, preload all objects,if false,load on demand
-	 * @param startIndex
-	 *            The index of the first object
-	 * @param endIndex
-	 *            The index of the last object that must be returned
-	 * @return A List of objects
-	 */
-	<T> Objects<T> getObjects(Class clazz, boolean inMemory, int startIndex, int endIndex);
-
-	/**
-	 * Delete an object from database
-	 * @param object
-	 */
-	OID delete(Object object);
+	
 	
 	/**
-	 * Delete an object and all its sub objects
+	 * Delete an object from database
+	 * 
 	 * @param object
-	 * @param cascade
-	 * @return
 	 */
-	OID deleteCascade(Object object);
+	ObjectOid delete(Object object);
 
+	/**
+	 * Delete a collection of object
+	 * 
+	 * @param objects The objects to be deleted
+	 */
+	void deleteAll(Collection objects);
+
+	
 	/**
 	 * Delete an object from the database with the id
 	 * 
 	 * @param oid
 	 *            The object id to be deleted
 	 */
-	void deleteObjectWithId(OID oid);
-
-	/**
-	 * Search for objects that matches the query.
-	 * 
-	 * @param query
-	 * @return The list of values
-	 * 
-	 */
-	Values getValues(IValuesQuery query);
+	void deleteObjectWithId(ObjectOid oid);
 
 	/**
 	 * Search for objects that matches the query.
 	 * 
 	 * @param query
 	 * @return The list of objects
-	 * 
+	 * @deprecated
 	 */
-	<T> Objects<T> getObjects(IQuery query);
+	<T> Objects<T> getObjects(Query query);
 
 	/**
 	 * Search for objects that matches the native query.
@@ -143,9 +116,10 @@ public interface ODB {
 	 * @param query
 	 * @param inMemory
 	 * @return The list of objects
+	 * @deprecated
 	 * 
 	 */
-	<T> Objects<T> getObjects(IQuery query, boolean inMemory);
+	<T> Objects<T> getObjects(Query query, boolean inMemory);
 
 	/**
 	 * Return a list of objects that matches the query
@@ -160,9 +134,9 @@ public interface ODB {
 	 * @return A List of objects, if start index and end index are -1, they are
 	 *         ignored. If not, the length of the sublist is endIndex -
 	 *         startIndex
-	 * 
+	 * @deprecated
 	 */
-	<T> Objects<T> getObjects(IQuery query, boolean inMemory, int startIndex, int endIndex);
+	<T> Objects<T> getObjects(Query query, boolean inMemory, int startIndex, int endIndex);
 
 	/**
 	 * Returns the number of objects that satisfy the query
@@ -179,7 +153,7 @@ public interface ODB {
 	 * @param object
 	 * @return The ODB internal object id
 	 */
-	OID getObjectId(Object object);
+	ObjectOid getObjectId(Object object);
 
 	/**
 	 * Get the object with a specific id *
@@ -188,7 +162,7 @@ public interface ODB {
 	 * @return The object with the specific id @
 	 */
 
-	Object getObjectFromId(OID id);
+	Object getObjectFromId(ObjectOid id);
 
 	/**
 	 * Defragment ODB Database
@@ -215,7 +189,6 @@ public interface ODB {
 	 * 
 	 */
 	ClassRepresentation getClassRepresentation(String fullClassName);
-	ClassRepresentation getClassRepresentation(String fullClassName, boolean laodClass);
 
 	/**
 	 * Used to add an update trigger callback for the specific class
@@ -231,6 +204,10 @@ public interface ODB {
 	 */
 	void addInsertTrigger(Class clazz, InsertTrigger trigger);
 
+	
+	void addOidTrigger(Class clazz, OIDTrigger trigger);
+	void removeOidTrigger(Class clazz, OIDTrigger trigger);
+	
 	/**
 	 * USed to add a delete trigger callback for the specific class
 	 * 
@@ -245,9 +222,6 @@ public interface ODB {
 	 */
 	void addSelectTrigger(Class clazz, SelectTrigger trigger);
 
-	/** Returns the object used to refactor the database */
-	IRefactorManager getRefactorManager();
-
 	/** Get the extension of ODB to get access to advanced functions */
 	ODBExt ext();
 
@@ -255,6 +229,9 @@ public interface ODB {
 	 * 
 	 * Used to reconnect an object to the current session */
 	void reconnect(Object object);
+	
+	/** Ask NeoDatis to load data data of the object using the depth*/
+	void refresh(Object o, int depth);
 
 	/**
 	 * Used to disconnect the object from the current session. The object is
@@ -267,12 +244,53 @@ public interface ODB {
 	 */
 	boolean isClosed();
 	
-	CriteriaQuery criteriaQuery(Class clazz, ICriterion criterio);
-	CriteriaQuery criteriaQuery(Class clazz);
-	
 	/**
 	 * Return the name of the database
 	 * @return the file name in local mode and the base id (alias) in client server mode.
 	 */
 	String getName();
+	
+	/** Used to let the user register listener for specific events
+	 * 
+	 * @param neoDatisEventType The type of the event to associate the listener to
+	 * @param eventListener The listener
+	 */
+	void registerEventListenerFor(NeoDatisEventType neoDatisEventType, NeoDatisEventListener eventListener);
+	
+	/** Returns a query
+	 * 
+	 */
+	Query query(Class clazz, Criterion criteria);
+	Query query(Class clazz);
+	Query query(String className, Criterion criteria);
+	Query query(String className);
+	Query query(NativeQuery q);
+	Query query(Query q);
+
+	
+
+	/**
+	 * @param class1
+	 * @return
+	 */
+	ValuesQuery queryValues(Class clazz, Criterion criteria);
+	ValuesQuery queryValues(String className, Criterion criteria);
+	ValuesQuery queryValues(String className);
+	ValuesQuery queryValues(Class clazz);
+
+	/** Create a values query on the object with the specific oid
+	 * 
+	 * @param clazz
+	 * @param oid
+	 * @return
+	 */
+	ValuesCriteriaQuery queryValues(Class clazz, ObjectOid oid);
+
+	/** Retrieve the neoDatisConfig instance
+	 * 
+	 * @return
+	 */
+	NeoDatisConfig getConfig();
+
+	
 }

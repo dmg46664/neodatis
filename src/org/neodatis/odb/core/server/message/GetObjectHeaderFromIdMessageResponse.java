@@ -22,8 +22,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 package org.neodatis.odb.core.server.message;
 
 import org.neodatis.odb.core.layers.layer2.meta.ObjectInfoHeader;
-import org.neodatis.odb.core.server.layers.layer3.engine.Command;
-import org.neodatis.odb.core.server.layers.layer3.engine.Message;
 /**
  * A response to a GetObjectHeaderFromIdMessage comamnd
  * @author olivier s
@@ -36,12 +34,12 @@ public class GetObjectHeaderFromIdMessageResponse extends Message {
 	private ObjectInfoHeader oih;
 	
 	public GetObjectHeaderFromIdMessageResponse(String baseId, String connectionId, String error){
-		super(Command.GET_OBJECT_HEADER_FROM_ID, baseId,connectionId);
+		super(MessageType.GET_OBJECT_HEADER_FROM_ID, baseId,connectionId);
 		setError(error);
 	}
 
 	public GetObjectHeaderFromIdMessageResponse(String baseId, String connectionId, ObjectInfoHeader oih){
-		super(Command.GET_OBJECT_HEADER_FROM_ID, baseId,connectionId);
+		super(MessageType.GET_OBJECT_HEADER_FROM_ID, baseId,connectionId);
 		this.oih = oih;
 	}
 
